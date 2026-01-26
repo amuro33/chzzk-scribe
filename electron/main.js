@@ -539,8 +539,6 @@ async function createWindow() {
     });
 }
 
-app.disableHardwareAcceleration(); // Added for debugging
-
 app.on('ready', createWindow);
 
 app.on('window-all-closed', () => {
