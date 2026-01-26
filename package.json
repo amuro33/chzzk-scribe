@@ -117,15 +117,13 @@
           "target": "nsis",
           "arch": [
             "x64"
-          ],
-          "artifactName": "${productName} ${version} Installer.${ext}"
+          ]
         },
         {
           "target": "portable",
           "arch": [
             "x64"
-          ],
-          "artifactName": "${productName} ${version} Portable.${ext}"
+          ]
         }
       ],
       "icon": "public/icon.png"
@@ -135,7 +133,11 @@
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "치지직 스크라이브",
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "artifactName": "${productName} ${version} Installer.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName} ${version} Portable.${ext}"
     },
     "publish": {
       "provider": "github",
