@@ -17,9 +17,8 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    if (app.isReady()) {
-        dialog.showErrorBox('Unhandled Rejection', reason?.stack || reason?.message || String(reason));
-    }
+    // Don't show dialog box for unhandled rejections as it's too intrusive.
+    // Errors are still logged to the console/debug log.
 });
 
 let mainWindow;
@@ -27,36 +26,13 @@ let loginWindow;
 
 // function createWindow wrapped async
 async function createWindow() {
-    let store;
-    try {
-        const { default: Store } = await import('electron-store');
-        store = new Store();
-    } catch (e) {
-        console.error('Failed to initialize store:', e);
-    }
-
-    // Get stored window state
     const defaultWidth = 1440;
     const defaultHeight = 900;
 
-    let bounds = { width: defaultWidth, height: defaultHeight };
-    if (store) {
-        try {
-            bounds = store.get('windowBounds', {
-                width: defaultWidth,
-                height: defaultHeight,
-            });
-        } catch (error) {
-            console.error('Failed to load window state:', error);
-        }
-    }
-
     mainWindow = new BrowserWindow({
         title: '치지직 스크라이브',
-        x: bounds.x,
-        y: bounds.y,
-        width: Math.max(bounds.width || defaultWidth, 800),
-        height: Math.max(bounds.height || defaultHeight, 600),
+        width: defaultWidth,
+        height: defaultHeight,
         frame: false, // Restore frameless
         titleBarStyle: 'hidden', // For macOS
         trafficLightPosition: { x: -100, y: -100 }, // Hide macOS traffic lights
@@ -64,6 +40,7 @@ async function createWindow() {
         backgroundColor: '#09090b',
         icon: path.join(__dirname, '../public/icon.png'),
         show: false,
+        center: true,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -73,10 +50,6 @@ async function createWindow() {
             devTools: !app.isPackaged,
         },
     });
-
-    if (bounds.x === undefined || bounds.y === undefined) {
-        mainWindow.center();
-    }
 
     // WebContent listeners (logging removed for production)
 
@@ -98,17 +71,6 @@ async function createWindow() {
             }
         }, 100);
     });
-
-    // Save window state on resize and move
-    const saveState = () => {
-        if (!mainWindow) return;
-        const bounds = mainWindow.getBounds();
-        store.set('windowBounds', bounds);
-    };
-
-    mainWindow.on('resize', saveState);
-    mainWindow.on('move', saveState);
-    mainWindow.on('close', saveState);
 
     // Window control IPC handlers
     ipcMain.on('window-minimize', () => {
@@ -556,7 +518,9 @@ async function createWindow() {
 
     // Check for updates on startup
     if (app.isPackaged) {
-        autoUpdater.checkForUpdatesAndNotify();
+        autoUpdater.checkForUpdatesAndNotify().catch(err => {
+            console.warn('[AutoUpdate] Initial check failed (likely network or missing release):', err.message);
+        });
     }
 
     mainWindow.on('closed', () => {
