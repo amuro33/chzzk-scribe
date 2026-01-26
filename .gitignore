@@ -30,6 +30,5 @@ debug_ytdlp.log
 debug_actions.log
 
 # binaries
-/bin/streamlink/
-/bin/yt-dlp.exe
+/bin/streamlink/ffmpeg/ffmpeg.exe
 /dist_electron/

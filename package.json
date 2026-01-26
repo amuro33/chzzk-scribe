@@ -99,6 +99,10 @@
     },
     "files": [
       "package.json",
+      "electron/**/*",
+      "lib/**/*",
+      "out/**/*",
+      ".next/**/*",
       "public/**/*",
       "node_modules/**/*"
     ],

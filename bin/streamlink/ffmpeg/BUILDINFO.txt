@@ -1,0 +1,9 @@
+Streamlink FFmpeg Builds <https://github.com/streamlink/FFmpeg-Builds>
+
+Commit: dd25a09f0cf32d3c661ae42bbac74bed5d2e0855
+Build: ffmpeg-n8.0-win64-gpl-8.0
+
+Configuration:
+  --enable-gpl
+  --enable-version3
+  --disable-debug
