@@ -34,7 +34,7 @@ declare global {
             getVideoMeta: (videoNo: string) => Promise<any>;
             getVodBitrate: (videoNo: string, resolution?: string) => Promise<number | null>;
             getChannelSocials: (channelId: string) => Promise<any[]>;
-            startVideoDownload: (jobId: string, url: string, basePath: string, fileName: string, streamerName: string, resolution: string, cookies: any, maxFragments: number, downloadEngine: string, streamlinkPath: string, durationSeconds: number, bitrateBps: number, tempPath: string, thumbnailUrl: string) => Promise<{ success: boolean }>;
+            startVideoDownload: (jobId: string, url: string, basePath: string, fileName: string, streamerName: string, resolution: string, cookies: any, maxFragments: number, streamlinkPath: string, durationSeconds: number, bitrateBps: number, tempPath: string, thumbnailUrl: string) => Promise<{ success: boolean }>;
             getVideoDownloadStatus: (jobId: string) => Promise<any>;
             cancelVideoDownload: (jobId: string) => Promise<{ success: boolean }>;
             deleteVideoFiles: (jobId: string) => Promise<{ success: boolean }>;

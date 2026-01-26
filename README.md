@@ -8,7 +8,7 @@
 
 ## ✨ 주요 기능
 
-- **VOD 다운로드**: 치지직의 고화질 VOD를 빠른 속도로 다운로드할 수 있습니다. (Streamlink 및 yt-dlp 지원)
+- **VOD 다운로드**: 치지직의 고화질 VOD를 빠른 속도로 다운로드할 수 있습니다. (Streamlink 기반)
 - **채팅 자막 변환**: 채팅 내역을 추출하여 실제 방송 화면의 오버레이처럼 보이는 **ASS 자막**으로 변환합니다.
 
 ## 🚀 빠른 시작
@@ -30,7 +30,7 @@
 ## 🛠 기술 스택
 - **Framework**: Next.js, Electron
 - **UI**: Tailwind CSS, Shadcn UI
-- **Engine**: Streamlink, yt-dlp, FFmpeg
+- **Engine**: Streamlink, FFmpeg
 
 ## 🔒 보안 및 개인정보 보호
 
@@ -38,7 +38,7 @@ Chzzk Scribe는 사용자의 보안과 개인정보를 최우선으로 생각하
 
 - **데이터 투명성**: 모든 네트워크 통신은 치지직 및 네이버 공식 도메인(`*.naver.com`, `*.pstatic.net` 등)으로만 한정됩니다. 사용자의 데이터를 외부 서버로 전송하지 않습니다.
 - **안전한 저장**: 네이버 로그인 세션 정보는 **Electron safeStorage API**를 사용하여 OS 수준에서 암호화되어 로컬에 저장됩니다.
-- **프로세스 제어**: `yt-dlp`, `streamlink` 등 영상 다운로드에 필수적인 외부 도구만을 제어하며, 시스템에 무해한 안전한 API(`shell.openPath` 등)를 사용합니다.
+- **프로세스 제어**: `streamlink` 등 영상 다운로드에 필수적인 외부 도구만을 제어하며, 시스템에 무해한 안전한 API(`shell.openPath` 등)를 사용합니다.
 
 상세한 내부 구조 및 동작 원리는 [ARCHITECTURE.md](ARCHITECTURE.md)를 참고해 주세요.
 

@@ -375,14 +375,14 @@ async function createWindow() {
         }
     });
 
-    ipcMain.handle('start-video-download', async (event, jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, downloadEngine, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl) => {
+    ipcMain.handle('start-video-download', async (event, jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl) => {
         let savePath = basePath;
         if (streamerName) {
             const sanitized = streamerName.replace(/[<>:"/\\|?*]/g, "");
             savePath = path.join(basePath, sanitized);
         }
         const effectiveTempPath = tempPath || path.join(basePath, ".downloading");
-        videoDownloader.start(jobId, url, savePath, fileName, resolution, cookies, maxFragments, downloadEngine, streamlinkPath, durationSeconds, bitrateBps, effectiveTempPath, thumbnailUrl);
+        videoDownloader.start(jobId, url, savePath, fileName, resolution, cookies, maxFragments, streamlinkPath, durationSeconds, bitrateBps, effectiveTempPath, thumbnailUrl);
         return { success: true };
     });
 

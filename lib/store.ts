@@ -85,7 +85,6 @@ export interface AppSettings {
   maxConcurrentFragments?: number;
   downloadSortOption?: string;
   downloadGroupOption?: string;
-  downloadEngine?: "ytdlp-exe" | "streamlink";
   streamlinkPortable?: boolean;
   streamlinkPath?: string;
   tempPath?: string;
@@ -147,7 +146,6 @@ const defaultAppSettings: AppSettings = {
   maxConcurrentFragments: 16,
   downloadSortOption: "download",
   downloadGroupOption: "none",
-  downloadEngine: "streamlink",
   streamlinkPortable: true,
   tempPath: "",
   filenameTemplate: "{title}",

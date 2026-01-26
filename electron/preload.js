@@ -44,8 +44,8 @@ contextBridge.exposeInMainWorld('electron', {
     getVideoMeta: (videoNo) => ipcRenderer.invoke('get-video-meta', videoNo),
     getVodBitrate: (videoNo, resolution) => ipcRenderer.invoke('get-vod-bitrate', videoNo, resolution),
     getChannelSocials: (channelId) => ipcRenderer.invoke('get-channel-socials', channelId),
-    startVideoDownload: (jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, downloadEngine, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl) =>
-        ipcRenderer.invoke('start-video-download', jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, downloadEngine, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl),
+    startVideoDownload: (jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl) =>
+        ipcRenderer.invoke('start-video-download', jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl),
     getVideoDownloadStatus: (jobId) => ipcRenderer.invoke('get-video-download-status', jobId),
     cancelVideoDownload: (jobId) => ipcRenderer.invoke('cancel-video-download', jobId),
     deleteVideoFiles: (jobId) => ipcRenderer.invoke('delete-video-files', jobId),
