@@ -32,3 +32,4 @@ debug_actions.log
 # binaries
 /bin/streamlink/
 /bin/yt-dlp.exe
+/dist_electron/
