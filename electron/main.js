@@ -500,7 +500,9 @@ async function createWindow() {
                 ...details.responseHeaders,
                 'Content-Security-Policy': [
                     "default-src 'self' 'unsafe-inline' https://*.naver.com https://*.akamaized.net https://*.pstatic.net; " +
-                    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " + // unsafe-eval needed for some Next.js/React stuff in dev, consider tightening in prod
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                    "font-src 'self' https://fonts.gstatic.com data:; " +
                     "img-src 'self' data: https: blob:; " +
                     "connect-src 'self' https://*.naver.com; " +
                     "frame-src 'self';"
