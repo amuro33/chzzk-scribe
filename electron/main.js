@@ -3,13 +3,15 @@ const path = require('path');
 const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 const checkDiskSpace = require('check-disk-space').default;
+const serve = require('electron-serve');
+
+const loadURL = serve({ directory: 'out' });
 
 // Disable hardware acceleration to prevent black screen on some Windows 11 systems
 app.disableHardwareAcceleration();
 
 // High DPI support for Windows with 300%+ display scaling
 app.commandLine.appendSwitch('high-dpi-support', '1');
-app.commandLine.appendSwitch('force-device-scale-factor', '1');
 
 // Suppress known noisy internal DevTools errors for a cleaner terminal
 app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication,VisualLogging,PerformanceControls');
@@ -478,9 +480,8 @@ async function createWindow() {
     });
 
     if (app.isPackaged) {
-        const outPath = path.join(__dirname, '../out/index.html');
-        console.log(`[Main] Loading file: ${outPath}`);
-        mainWindow.loadFile(outPath);
+        console.log(`[Main] Loading app via electron-serve (app://-)`);
+        await loadURL(mainWindow);
     } else {
         const startUrl = process.env.ELECTRON_START_URL || 'http://localhost:3000';
         console.log(`[Main] Loading URL: ${startUrl}`);
