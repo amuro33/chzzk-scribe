@@ -42,6 +42,7 @@ declare global {
             checkFilesExistence: (paths: string[]) => Promise<Record<string, boolean>>;
             downloadChat: (vodId: string, streamerName: string, videoTitle: string, videoTimestamp: number, savePath: string, requestFileName?: string) => Promise<any>;
             convertLocalJsonToAss: (folderPath: string, fileName: string, settings: any) => Promise<any>;
+            getAppVersion: () => Promise<string>;
         };
     }
 }

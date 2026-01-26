@@ -36,6 +36,7 @@ import { Progress } from "@/components/ui/progress";
 export default function SettingsPage() {
   const { downloads, appSettings, setAppSettings, resetSettings } = useAppStore();
   const { setTheme } = useTheme();
+  const [appVersion, setAppVersion] = useState<string>("v1.0.0");
   const activeDownloads = downloads.filter(
     (d) => d.status === "downloading" || d.status === "queued"
   ).length;
@@ -69,6 +70,19 @@ export default function SettingsPage() {
       cleanupStatus();
       cleanupProgress();
     };
+  }, []);
+
+  useEffect(() => {
+    const fetchVersion = async () => {
+      try {
+        const { ipcBridge } = await import("@/lib/ipc-bridge");
+        const version = await ipcBridge.getAppVersion();
+        setAppVersion(`v${version}`);
+      } catch (error) {
+        console.error("Failed to fetch app version:", error);
+      }
+    };
+    fetchVersion();
   }, []);
 
   const handleCheckForUpdates = async () => {
@@ -283,7 +297,7 @@ export default function SettingsPage() {
               <div className="rounded-xl border bg-card p-6 shadow-sm">
                 <div className="flex flex-col gap-4 text-sm text-muted-foreground">
                   <div>
-                    <p className="text-base font-semibold text-foreground">치지직 스크라이브 (Chzzk Scribe) v1.0.0</p>
+                    <p className="text-base font-semibold text-foreground">치지직 스크라이브 (Chzzk Scribe) {appVersion}</p>
                     <p className="mt-1">치지직의 다시보기 및 채팅 다운로드를 위한 강력한 도구입니다. 치지직 스크라이브는 어떠한 정보도 외부로 전송하지 않습니다.</p>
                   </div>
 

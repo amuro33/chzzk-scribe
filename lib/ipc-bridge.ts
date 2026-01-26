@@ -101,5 +101,9 @@ export const ipcBridge = {
     windowIsMaximized: async () => {
         if (!isElectron) return false;
         return window.electron.windowIsMaximized();
+    },
+    getAppVersion: async () => {
+        if (!isElectron) return '1.0.0'; // Fallback
+        return window.electron.getAppVersion();
     }
 };

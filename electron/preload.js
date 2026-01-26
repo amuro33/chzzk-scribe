@@ -55,4 +55,5 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.invoke('download-chat', vodId, streamerName, videoTitle, videoTimestamp, savePath, requestFileName),
     convertLocalJsonToAss: (folderPath, fileName, settings) =>
         ipcRenderer.invoke('convert-local-json-to-ass', folderPath, fileName, settings),
+    getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 });
