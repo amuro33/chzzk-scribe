@@ -2,6 +2,7 @@
 const nextConfig = {
   output: 'export',
   trailingSlash: true,
+  assetPrefix: './', // Required for Electron file:// protocol
   typescript: {
     ignoreBuildErrors: true,
   },
