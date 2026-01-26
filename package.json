@@ -1,6 +1,6 @@
 {
   "name": "chzzk-scribe",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "치지직 VOD 및 채팅 자막 다운로더",
   "author": "amuro33",
   "private": true,
@@ -100,6 +100,7 @@
       "package.json",
       "electron/**/*",
       "lib/**/*",
+      "out/**/*",
       ".next/**/*",
       "public/**/*",
       "bin/**/*",

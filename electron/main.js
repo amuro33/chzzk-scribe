@@ -4,6 +4,9 @@ const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 const checkDiskSpace = require('check-disk-space').default;
 
+// Disable hardware acceleration to prevent black screen on some Windows 11 systems
+app.disableHardwareAcceleration();
+
 // Suppress known noisy internal DevTools errors for a cleaner terminal
 app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication,VisualLogging,PerformanceControls');
 app.commandLine.appendSwitch('log-level', '3'); // Only show errors
@@ -494,8 +497,9 @@ async function createWindow() {
                 'Content-Security-Policy': [
                     "default-src 'self' 'unsafe-inline' https://*.naver.com https://*.akamaized.net https://*.pstatic.net; " +
                     "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " + // unsafe-eval needed for some Next.js/React stuff in dev, consider tightening in prod
-                    "img-src 'self' data: https:; " +
-                    "connect-src 'self' https://*.naver.com;"
+                    "img-src 'self' data: https: blob:; " +
+                    "connect-src 'self' https://*.naver.com; " +
+                    "frame-src 'self';"
                 ]
             }
         });
@@ -528,6 +532,7 @@ async function createWindow() {
     });
 }
 
+app.disableHardwareAcceleration(); // Added for debugging
 
 app.on('ready', createWindow);
 
@@ -540,6 +545,12 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
     if (mainWindow === null) {
         createWindow();
+    }
+    // Add did-fail-load listener for debugging
+    if (mainWindow) { // Ensure mainWindow exists before attaching listener
+        mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+            console.error(`[Main] Failed to load URL: ${validatedURL}, Error: ${errorDescription} (${errorCode})`);
+        });
     }
 });
 
