@@ -1,0 +1,44 @@
+{
+    "appId": "com.chzzk.scribe",
+    "productName": "치지직 스크라이브",
+    "directories": {
+        "output": "dist_electron"
+    },
+    "files": [
+        "package.json",
+        "electron/**/*",
+        "out/**/*",
+        "public/**/*",
+        "bin/**/*",
+        "node_modules/**/*"
+    ],
+    "win": {
+        "target": [
+            {
+                "target": "nsis",
+                "arch": [
+                    "x64",
+                    "ia32"
+                ]
+            },
+            "portable"
+        ],
+        "icon": "public/icon.png",
+        "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+        "oneClick": false,
+        "allowToChangeInstallationDirectory": true,
+        "shortcutName": "치지직 스크라이브",
+        "createDesktopShortcut": true,
+        "createStartMenuShortcut": true,
+        "installerIcon": "public/icon.png",
+        "uninstallerIcon": "public/icon.png",
+        "runAfterFinish": true
+    },
+    "publish": {
+        "provider": "github",
+        "owner": "amuro33",
+        "repo": "chzzk-scribe"
+    }
+}

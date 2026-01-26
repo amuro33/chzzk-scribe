@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Trash2 } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DownloadItem } from "@/components/download-item";
-import { openDownloadFolder, cancelVideoDownload, deleteVideoFiles, getVideoMeta } from "@/app/actions";
+import { ipcBridge } from "@/lib/ipc-bridge";
 import path from "path";
 import { ChatDownloadModal } from "@/components/chat-download-modal";
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,7 @@ export default function ChatPage() {
 
   const handlePause = async (id: string) => {
     // Cancel the backend process first
-    await cancelVideoDownload(id);
+    await ipcBridge.cancelVideoDownload(id);
     pauseDownload(id);
   };
 
@@ -83,8 +83,8 @@ export default function ChatPage() {
     const item = downloads.find(d => d.id === id);
     if (item && item.type === "video" && item.status !== "completed") {
       // For active or failed downloads, we want to cancel process AND delete temp files
-      await cancelVideoDownload(id);
-      await deleteVideoFiles(id);
+      await ipcBridge.cancelVideoDownload(id);
+      await ipcBridge.deleteVideoFiles(id);
     }
     removeDownload(id);
   };
@@ -93,17 +93,33 @@ export default function ChatPage() {
     updateDownload(id, { status: "queued", progress: 0, error: undefined });
   };
 
-  const handleOpenFolder = async (folderPath: string, streamerName?: string) => {
-    if (!folderPath) return;
+  const handleOpenFolder = async (folderPath?: string, streamerName?: string) => {
+    if (!folderPath) {
+      toast.error("폴더 경로 정보를 찾을 수 없습니다.");
+      return;
+    }
 
-    if ((window as any).electron?.openPath) {
-      // Re-use logic: we'll call a server action just to get the resolved path string safely
-      const resolvedPath = await openDownloadFolder(folderPath, streamerName, true); // Added returnPathOnly flag
-      if (resolvedPath && typeof resolvedPath === 'string') {
-        await (window as any).electron.openPath(resolvedPath);
+    try {
+      let targetPath = folderPath;
+
+      // If we don't have a specific folderPath and we have a streamerName, 
+      // it might be in a subfolder. But usually folderPath is already full from the processor.
+      if (!targetPath.includes(streamerName || "") && streamerName) {
+        const sanitized = streamerName.replace(/[<>:"/\\|?*]/g, "");
+        // Basic check to see if we need to append
+        if (!targetPath.endsWith(sanitized)) {
+          targetPath = `${targetPath}/${sanitized}`;
+        }
       }
-    } else {
-      await openDownloadFolder(folderPath, streamerName);
+
+      const success = await ipcBridge.openPath(targetPath);
+      if (!success) {
+        // Fallback to parent if the specific streamer folder doesn't exist yet
+        await ipcBridge.openPath(folderPath);
+      }
+    } catch (error) {
+      console.error("Failed to open folder:", error);
+      toast.error("폴더를 여는 중 오류가 발생했습니다.");
     }
   };
 

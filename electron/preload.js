@@ -36,4 +36,23 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('update-progress', (_, percent) => callback(percent));
         return () => ipcRenderer.removeAllListeners('update-progress');
     },
+
+    // Migrated Actions
+    searchChannels: (keyword) => ipcRenderer.invoke('search-channels', keyword),
+    getChannelVideos: (channelId, page, size, sortType, cookies, videoType) =>
+        ipcRenderer.invoke('get-channel-videos', channelId, page, size, sortType, cookies, videoType),
+    getVideoMeta: (videoNo) => ipcRenderer.invoke('get-video-meta', videoNo),
+    getVodBitrate: (videoNo, resolution) => ipcRenderer.invoke('get-vod-bitrate', videoNo, resolution),
+    getChannelSocials: (channelId) => ipcRenderer.invoke('get-channel-socials', channelId),
+    startVideoDownload: (jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, downloadEngine, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl) =>
+        ipcRenderer.invoke('start-video-download', jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, downloadEngine, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl),
+    getVideoDownloadStatus: (jobId) => ipcRenderer.invoke('get-video-download-status', jobId),
+    cancelVideoDownload: (jobId) => ipcRenderer.invoke('cancel-video-download', jobId),
+    deleteVideoFiles: (jobId) => ipcRenderer.invoke('delete-video-files', jobId),
+    checkDownloadedFiles: (vods, basePath) => ipcRenderer.invoke('check-downloaded-files', vods, basePath),
+    checkFilesExistence: (paths) => ipcRenderer.invoke('check-files-existence', paths),
+    downloadChat: (vodId, streamerName, videoTitle, videoTimestamp, savePath, requestFileName) =>
+        ipcRenderer.invoke('download-chat', vodId, streamerName, videoTitle, videoTimestamp, savePath, requestFileName),
+    convertLocalJsonToAss: (folderPath, fileName, settings) =>
+        ipcRenderer.invoke('convert-local-json-to-ass', folderPath, fileName, settings),
 });

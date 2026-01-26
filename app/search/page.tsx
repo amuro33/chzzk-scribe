@@ -16,13 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppStore, type VOD, type DownloadItem, type Streamer } from "@/lib/store";
 import { Badge } from "@/components/ui/badge";
-import { searchChannels, getChannelVideos, type SearchResult, checkDownloadedFiles, getChannelSocials } from "@/app/actions";
+import { ipcBridge } from "@/lib/ipc-bridge";
+import type { SearchResult } from "@/types/chzzk";
 import { useEffect } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Assuming you have an Avatar component, if not I'll use standard img or check components
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import Loading from "./loading";
-import { toast } from "sonner"; // Assuming sonner is installed as seen in package.json
+import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { generateFileName } from "@/lib/utils";
 import {
@@ -73,27 +74,16 @@ function SearchPageContent() {
   const [enabledStreamerIds, setEnabledStreamerIds] = useState<string[]>([]);
   const { naverCookies } = useAppStore(); // Get cookies
 
-  // ... (existing effects for routing) ...
-
-  // Initialize enabled filters when favorites change or on mount
   useEffect(() => {
-    // If we have a URL param, sync it to store.
     if (streamerId) {
       if (lastActiveStreamerId !== streamerId) {
         setLastActiveStreamerId(streamerId);
       }
     }
-    // If no URL param but we have a stored ID, restore it (but only on initial mount or direct nav to /search without params)
     else if (lastActiveStreamerId) {
-      // Redirect to last state (could be specific streamer or 'all')
       router.replace(`/search?streamer=${lastActiveStreamerId}`);
     }
-    // If no param and no stored ID, default to 'all' to be explicit? Or just leave as combined?
-    // Let's leave as is.
   }, [streamerId, lastActiveStreamerId, setLastActiveStreamerId, router]);
-
-  // Initial restoration effect with router - Removed duplicative restoration logic that was causing loops
-  // The above effect handles both sync and restoration.
 
   useEffect(() => {
     if (!streamerId || streamerId === "all") {
@@ -101,25 +91,20 @@ function SearchPageContent() {
     }
   }, [favoriteStreamers, streamerId]);
 
-  // Fetch VODs when streamerId changes OR when in "combined mode" (no streamerId) OR when cookies change
-  // We wrap fetchVods to be reachable from pagination handlers
   const fetchVods = async (page: number = 0) => {
     setIsLoadingVods(true);
     const currentId = (streamerId && streamerId !== "all") ? streamerId : "all";
 
     try {
       if (streamerId && streamerId !== "all") {
-        // Single Streamer Mode - Support Pagination
-        const response = await getChannelVideos(streamerId, page, 18, sortType, naverCookies, videoType);
+        const response = await ipcBridge.getChannelVideos(streamerId, page, 18, sortType, naverCookies, videoType);
         const mappedVods = mapVideosToVODs(response.videos);
         setVods(mappedVods);
 
-        // Update pagination state
         setCurrentPage(response.page);
         setTotalPages(response.totalPages);
         setTotalCount(response.totalCount);
 
-        // Verify downloaded files and update status
         const vodsToCheck = mappedVods.map(v => ({
           videoNo: v.videoNo,
           title: v.title,
@@ -127,7 +112,7 @@ function SearchPageContent() {
           streamerName: v.streamerName
         }));
 
-        checkDownloadedFiles(vodsToCheck, appSettings.downloadPath).then(downloadedIds => {
+        ipcBridge.checkDownloadedFiles(vodsToCheck, appSettings.downloadPath).then((downloadedIds: number[]) => {
           if (downloadedIds.length > 0) {
             setVods(prev => prev.map(v =>
               downloadedIds.includes(v.videoNo) ? { ...v, isDownloaded: true } : v
@@ -136,7 +121,6 @@ function SearchPageContent() {
         });
 
       } else {
-        // Combined Mode: Fetch from all favorites (Page 0 only for now)
         if (favoriteStreamers.length === 0) {
           setVods([]);
           setFetchedId(currentId);
@@ -145,32 +129,26 @@ function SearchPageContent() {
           return;
         }
 
-        const promises = favoriteStreamers.map(s => getChannelVideos(s.id, 0, 18, sortType, naverCookies, videoType));
+        const promises = favoriteStreamers.map(s => ipcBridge.getChannelVideos(s.id, 0, 18, sortType, naverCookies, videoType));
         const results = await Promise.all(promises);
 
         let allVods: VOD[] = [];
 
         results.forEach(response => {
-          // response is now { videos, page, ... }
           const mapped = mapVideosToVODs(response.videos);
           allVods = [...allVods, ...mapped];
         });
 
-        // Sort by date (newest first)
         if (sortType === "LATEST") {
           allVods.sort((a, b) => b.timestamp - a.timestamp);
         } else {
-          // Note: combined mode sorting for 'POPULAR' is less accurate across different streamers
-          // but we'll leave it as date sort for now or just generic combined.
           allVods.sort((a, b) => b.timestamp - a.timestamp);
         }
         setVods(allVods);
 
-        // Disable pagination for combined view
         setTotalPages(0);
         setCurrentPage(0);
 
-        // Verify downloads for combined view too
         const vodsToCheck = allVods.map(v => ({
           videoNo: v.videoNo,
           title: v.title,
@@ -178,7 +156,7 @@ function SearchPageContent() {
           streamerName: v.streamerName
         }));
 
-        checkDownloadedFiles(vodsToCheck, appSettings.downloadPath).then(downloadedIds => {
+        ipcBridge.checkDownloadedFiles(vodsToCheck, appSettings.downloadPath).then((downloadedIds: number[]) => {
           if (downloadedIds.length > 0) {
             setVods(prev => prev.map(v =>
               downloadedIds.includes(v.videoNo) ? { ...v, isDownloaded: true } : v
@@ -196,7 +174,6 @@ function SearchPageContent() {
   };
 
   useEffect(() => {
-    // Reset page to 0 when streamer changes
     setCurrentPage(0);
     fetchVods(0);
   }, [streamerId, favoriteStreamers, naverCookies, sortType, videoType]);
@@ -204,7 +181,6 @@ function SearchPageContent() {
   const handlePageChange = (newPage: number) => {
     if (newPage < 0 || newPage >= totalPages) return;
     fetchVods(newPage);
-    // Scroll to top of VOD list
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -233,7 +209,7 @@ function SearchPageContent() {
 
     setIsSearching(true);
     try {
-      const results = await searchChannels(searchQuery);
+      const results = await ipcBridge.searchChannels(searchQuery);
       setSearchResults(results);
       setHasSearched(true);
     } catch (error) {
@@ -251,7 +227,7 @@ function SearchPageContent() {
       return;
     }
 
-    const socials = await getChannelSocials(streamer.id);
+    const socials = await ipcBridge.getChannelSocials(streamer.id);
 
     const newStreamer: Streamer = {
       id: streamer.id,
@@ -291,7 +267,7 @@ function SearchPageContent() {
 
     const download: DownloadItem = {
       id: `dl-${Date.now()}`,
-      vodId: String(vod.videoNo), // Use videoNo for URL construction
+      vodId: String(vod.videoNo),
       title: vod.title,
       fileName: fileName,
       type: "video",
@@ -313,7 +289,6 @@ function SearchPageContent() {
   };
 
   const handleChatDownload = (vod: VOD) => {
-    // Pass numeric videoNo as vodId for chat API
     const template = appSettings.filenameTemplate || "{title}";
     const generatedName = generateFileName(template, {
       title: vod.title,
@@ -322,7 +297,6 @@ function SearchPageContent() {
       downloadDate: new Date().toISOString().split("T")[0]
     });
 
-    // Strip .mp4 if present in template result to avoid "Video.mp4.json" unless user wants that
     const baseName = generatedName.replace(/\.[^/.]+$/, "");
     const fileName = baseName.toLowerCase().endsWith(".json")
       ? baseName
@@ -330,7 +304,7 @@ function SearchPageContent() {
 
     const download: DownloadItem = {
       id: `chat-${Date.now()}-json`,
-      vodId: String(vod.videoNo || vod.id), // Fallback to id if videoNo missing (shouldn't happen)
+      vodId: String(vod.videoNo || vod.id),
       title: vod.title,
       fileName: fileName,
       type: "chat",
@@ -351,14 +325,10 @@ function SearchPageContent() {
   };
 
   const clearPersistentStreamer = () => {
-    // Explicitly set to 'all' to show combined view and save this preference
     setLastActiveStreamerId("all");
     setHasSearched(false);
     setSearchQuery("");
-
     router.push("/search?streamer=all");
-
-    // Also reset enabled filters to all
     setEnabledStreamerIds(favoriteStreamers.map(s => s.id));
   };
 
@@ -372,7 +342,6 @@ function SearchPageContent() {
     });
   };
 
-  /* displayedVods logic updated to handle 'all' */
   const displayedVods = (streamerId && streamerId !== "all")
     ? vods
     : vods.filter(v => enabledStreamerIds.includes(v.streamerId));
@@ -382,8 +351,6 @@ function SearchPageContent() {
       <AppSidebar />
       <main className="ml-16 flex-1 overflow-auto">
         <div className="p-8">
-
-
           <div className="mb-6 relative">
             <Input
               placeholder="스트리머 검색..."
@@ -404,7 +371,6 @@ function SearchPageContent() {
             </Button>
           </div>
 
-          {/* Active Streamer Indicator (Persistence UI) */}
           {streamerId && streamerId !== "all" && (
             <div className="mb-6">
               <div className="inline-flex items-center gap-1 pl-3 pr-1 py-1 bg-secondary/50 rounded-full text-sm font-medium text-foreground border border-border">
@@ -422,7 +388,6 @@ function SearchPageContent() {
             </div>
           )}
 
-          {/* Filter Tags (Combined Mode Only) */}
           {(!streamerId || streamerId === "all") && !hasSearched && favoriteStreamers.length > 0 && (
             <div className="mb-8 flex flex-wrap gap-2">
               {favoriteStreamers.map(streamer => {
@@ -453,7 +418,6 @@ function SearchPageContent() {
           )}
 
           <div className="space-y-6">
-            {/* Streamer Search Results */}
             {hasSearched && (
               <div className="space-y-4">
                 <h2 className="text-lg font-medium text-foreground">
@@ -512,7 +476,6 @@ function SearchPageContent() {
               </div>
             )}
 
-            {/* VOD List */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground flex items-center gap-4">
@@ -580,18 +543,15 @@ function SearchPageContent() {
                   <p>로딩 중...</p>
                 </div>
               ) : (
-                <div className={`grid gap-4 ${{
-                  1: "grid-cols-1",
-                  2: "grid-cols-2",
-                  3: "grid-cols-3",
-                  4: "grid-cols-4",
-                  5: "grid-cols-5",
-                  6: "grid-cols-6",
-                  7: "grid-cols-7",
-                  8: "grid-cols-8",
-                  9: "grid-cols-9",
-                  10: "grid-cols-10",
-                }[gridColumns]
+                <div className={`grid gap-4 ${gridColumns === 1 ? "grid-cols-1" :
+                  gridColumns === 2 ? "grid-cols-2" :
+                    gridColumns === 3 ? "grid-cols-3" :
+                      gridColumns === 4 ? "grid-cols-4" :
+                        gridColumns === 5 ? "grid-cols-5" :
+                          gridColumns === 6 ? "grid-cols-6" :
+                            gridColumns === 7 ? "grid-cols-7" :
+                              gridColumns === 8 ? "grid-cols-8" :
+                                gridColumns === 9 ? "grid-cols-9" : "grid-cols-10"
                   }`}>
                   {displayedVods.length > 0 ? displayedVods.map((vod) => (
                     <VODCard
@@ -615,7 +575,6 @@ function SearchPageContent() {
               )}
 
 
-              {/* Pagination Controls */}
               {!isLoadingVods && totalPages > 1 && streamerId && streamerId !== "all" && (
                 <div className="flex justify-center items-center gap-2 mt-8 pb-8">
                   <Button
@@ -687,8 +646,6 @@ function SearchPageContent() {
             </div>
           </div>
         </div>
-
-
 
         {selectedVOD && (
           <ChatDownloadModal

@@ -4,49 +4,99 @@ const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 const checkDiskSpace = require('check-disk-space').default;
 
+// Suppress known noisy internal DevTools errors for a cleaner terminal
+app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication,VisualLogging,PerformanceControls');
+app.commandLine.appendSwitch('log-level', '3'); // Only show errors
+
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    if (app.isReady()) {
+        dialog.showErrorBox('Uncaught Exception', error.stack || error.message);
+    }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    if (app.isReady()) {
+        dialog.showErrorBox('Unhandled Rejection', reason?.stack || reason?.message || String(reason));
+    }
+});
+
 let mainWindow;
 let loginWindow;
 
 // function createWindow wrapped async
 async function createWindow() {
-    // Initialize electron-store dynamically
-    const { default: Store } = await import('electron-store');
-    const store = new Store();
+    let store;
+    try {
+        const { default: Store } = await import('electron-store');
+        store = new Store();
+    } catch (e) {
+        console.error('Failed to initialize store:', e);
+    }
 
     // Get stored window state
     const defaultWidth = 1440;
     const defaultHeight = 900;
 
     let bounds = { width: defaultWidth, height: defaultHeight };
-    try {
-        bounds = store.get('windowBounds', {
-            width: defaultWidth,
-            height: defaultHeight,
-        });
-    } catch (error) {
-        console.error('Failed to load window state:', error);
-        // bounds already set to default
+    if (store) {
+        try {
+            bounds = store.get('windowBounds', {
+                width: defaultWidth,
+                height: defaultHeight,
+            });
+        } catch (error) {
+            console.error('Failed to load window state:', error);
+        }
     }
 
     mainWindow = new BrowserWindow({
         title: '치지직 스크라이브',
-        ...bounds, // Restore position and size
-        width: bounds.width || defaultWidth, // Fallback
-        height: bounds.height || defaultHeight, // Fallback
-        frame: false, // Frameless window for custom titlebar
+        x: bounds.x,
+        y: bounds.y,
+        width: Math.max(bounds.width || defaultWidth, 800),
+        height: Math.max(bounds.height || defaultHeight, 600),
+        frame: false, // Restore frameless
         titleBarStyle: 'hidden', // For macOS
         trafficLightPosition: { x: -100, y: -100 }, // Hide macOS traffic lights
         autoHideMenuBar: true,
-        backgroundColor: '#09090b', // Dark background to prevent white flash
-        icon: path.join(__dirname, '../public/icon.png'), // Custom app icon
+        backgroundColor: '#09090b',
+        icon: path.join(__dirname, '../public/icon.png'),
+        show: false,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: true,
+            sandbox: false,
             webSecurity: true,
             preload: path.join(__dirname, 'preload.js'),
             devTools: !app.isPackaged,
         },
+    });
+
+    if (bounds.x === undefined || bounds.y === undefined) {
+        mainWindow.center();
+    }
+
+    // WebContent listeners (logging removed for production)
+
+    mainWindow.once('ready-to-show', () => {
+        mainWindow.show();
+
+        // Aggressive focus sequence for Windows
+        setTimeout(() => {
+            if (mainWindow) {
+                mainWindow.setAlwaysOnTop(true, 'screen-saver');
+                mainWindow.setAlwaysOnTop(true);
+                mainWindow.focus();
+                mainWindow.show();
+
+                // Release always-on-top after a short delay
+                setTimeout(() => {
+                    if (mainWindow) mainWindow.setAlwaysOnTop(false);
+                }, 1000);
+            }
+        }, 100);
     });
 
     // Save window state on resize and move
@@ -188,8 +238,291 @@ async function createWindow() {
         mainWindow?.webContents.send('window-maximized-change', false);
     });
 
-    const startUrl = process.env.ELECTRON_START_URL || 'http://localhost:3000';
-    mainWindow.loadURL(startUrl);
+    // --- Next.js Action Migration to IPC ---
+    const { generateAssFromChats } = require('../lib/ass-converter.js');
+    const { videoDownloader } = require('../lib/video-downloader.js');
+
+    ipcMain.handle('search-channels', async (event, keyword) => {
+        try {
+            const url = `https://api.chzzk.naver.com/service/v1/search/channels?keyword=${encodeURIComponent(keyword)}&offset=0&size=30&withFirstChannelContent=false`;
+            const response = await fetch(url, {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "application/json",
+                },
+            });
+            const data = await response.json();
+            if (!data.content || !data.content.data) return [];
+            return data.content.data.map((item) => {
+                const channel = item.channel;
+                return {
+                    id: channel.channelId,
+                    name: channel.channelName,
+                    avatarUrl: channel.channelImageUrl ? channel.channelImageUrl : "",
+                    channelUrl: `https://chzzk.naver.com/${channel.channelId}`,
+                    description: channel.channelDescription,
+                    isVerified: channel.verifiedMark,
+                };
+            });
+        } catch (error) {
+            console.error("[Search] IPC Search failed:", error);
+            return [];
+        }
+    });
+
+    ipcMain.handle('get-channel-videos', async (event, channelId, page = 0, size = 18, sortType = "LATEST", cookies = null, videoType = "") => {
+        try {
+            const url = `https://api.chzzk.naver.com/service/v1/channels/${channelId}/videos?sortType=${sortType}&pagingType=PAGE&page=${page}&size=${size}&publishDateAt=&videoType=${videoType}`;
+            const headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+            };
+            if (cookies) {
+                headers["Cookie"] = `NID_AUT=${cookies.nidAut}; NID_SES=${cookies.nidSes}`;
+            }
+            const response = await fetch(url, { headers });
+            const data = await response.json();
+            if (!data.content || !data.content.data) {
+                return { videos: [], page: 0, size, totalCount: 0, totalPages: 0 };
+            }
+            return {
+                videos: data.content.data,
+                page: data.content.page || page,
+                size: data.content.size || size,
+                totalCount: data.content.totalCount || 0,
+                totalPages: data.content.totalPages || 0
+            };
+        } catch (error) {
+            console.error("[Videos] IPC Fetch failed:", error);
+            return { videos: [], page: 0, size, totalCount: 0, totalPages: 0 };
+        }
+    });
+
+    ipcMain.handle('get-video-meta', async (event, videoNo) => {
+        try {
+            const url = `https://api.chzzk.naver.com/service/v2/videos/${videoNo}`;
+            const response = await fetch(url, {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "application/json",
+                }
+            });
+            const data = await response.json();
+            if (data.code !== 200 || !data.content) return null;
+            return data.content;
+        } catch (error) {
+            console.error("[VideoMeta] IPC Fetch failed:", error);
+            return null;
+        }
+    });
+
+    ipcMain.handle('get-vod-bitrate', async (event, videoNo, resolution) => {
+        try {
+            const url = `https://api.chzzk.naver.com/service/v1/videos/${videoNo}/video-playback-json`;
+            const response = await fetch(url, {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "application/json",
+                }
+            });
+            const data = await response.json();
+            if (data.content && typeof data.content === "string") {
+                const playbackData = JSON.parse(data.content);
+                if (playbackData.videos && Array.isArray(playbackData.videos)) {
+                    let targetHeight = 1080;
+                    if (resolution) {
+                        const match = resolution.match(/(\d+)p/);
+                        if (match) targetHeight = parseInt(match[1]);
+                    }
+                    const matchingVideo = playbackData.videos.find((v) => v.encodingOption?.height === targetHeight);
+                    if (matchingVideo?.encodingOption?.bitrate) return matchingVideo.encodingOption.bitrate;
+                    const sorted = playbackData.videos.sort((a, b) => (b.encodingOption?.bitrate || 0) - (a.encodingOption?.bitrate || 0));
+                    if (sorted[0]?.encodingOption?.bitrate) return sorted[0].encodingOption.bitrate;
+                }
+            }
+            return null;
+        } catch (error) {
+            console.error("[VodBitrate] IPC Fetch failed:", error);
+            return null;
+        }
+    });
+
+    ipcMain.handle('get-channel-socials', async (event, channelId) => {
+        try {
+            const url = `https://api.chzzk.naver.com/service/v1/channels/${channelId}/data?fields=socialLinks,donationRankingsExposure,channelHistory,achievementBadgeExposure,logPowerRankingExposure,logPowerActive`;
+            const response = await fetch(url, {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "application/json",
+                }
+            });
+            const data = await response.json();
+            if (data.code !== 200 || !data.content || !data.content.socialLinks) return [];
+            return data.content.socialLinks.map((link) => {
+                const url = link.landingUrl || link.url || "";
+                let type = "OTHER";
+                if (url.includes("youtube.com") || url.includes("youtu.be")) type = "YOUTUBE";
+                else if (url.includes("cafe.naver.com")) type = "CAFE";
+                else if (url.includes("instagram.com")) type = "INSTAGRAM";
+                else if (url.includes("twitter.com") || url.includes("x.com")) type = "TWITTER";
+                else if (url.includes("facebook.com")) type = "FACEBOOK";
+                else if (url.includes("discord.gg") || url.includes("discord.com")) type = "DISCORD";
+                return { type, url };
+            });
+        } catch (error) {
+            console.error("[Socials] IPC Fetch failed:", error);
+            return [];
+        }
+    });
+
+    ipcMain.handle('start-video-download', async (event, jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, downloadEngine, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl) => {
+        let savePath = basePath;
+        if (streamerName) {
+            const sanitized = streamerName.replace(/[<>:"/\\|?*]/g, "");
+            savePath = path.join(basePath, sanitized);
+        }
+        const effectiveTempPath = tempPath || path.join(basePath, ".downloading");
+        videoDownloader.start(jobId, url, savePath, fileName, resolution, cookies, maxFragments, downloadEngine, streamlinkPath, durationSeconds, bitrateBps, effectiveTempPath, thumbnailUrl);
+        return { success: true };
+    });
+
+    ipcMain.handle('get-video-download-status', async (event, jobId) => {
+        const status = videoDownloader.getStatus(jobId);
+        if (!status) return null;
+        return {
+            jobId: status.jobId,
+            status: status.status,
+            progress: status.progress,
+            downloadedSize: status.downloadedSize,
+            totalSize: status.totalSize,
+            speed: status.speed,
+            eta: status.eta,
+            error: status.error,
+            fileName: status.fileName,
+            filePath: status.filePath,
+            folderPath: status.filePath ? path.dirname(status.filePath) : undefined
+        };
+    });
+
+    ipcMain.handle('cancel-video-download', async (event, jobId) => {
+        videoDownloader.cancel(jobId);
+        return { success: true };
+    });
+
+    ipcMain.handle('delete-video-files', async (event, jobId) => {
+        videoDownloader.deleteFiles(jobId);
+        return { success: true };
+    });
+
+    ipcMain.handle('check-downloaded-files', async (event, vods, basePath) => {
+        try {
+            const existingIds = [];
+            for (const vod of vods) {
+                const sanitizedStreamer = vod.streamerName.replace(/[<>:"/\\|?*]/g, "");
+                const sanitizedTitle = vod.title.replace(/[<>:"/\\|?*]/g, "");
+                const date = new Date(vod.timestamp);
+                const timestampStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                const fileName = `[${timestampStr}][${sanitizedStreamer}] ${sanitizedTitle}.mp4`;
+                const path1 = path.join(basePath, sanitizedStreamer, fileName);
+                const path2 = path.join(basePath, fileName);
+                if (fs.existsSync(path1) || fs.existsSync(path2)) existingIds.push(vod.videoNo);
+            }
+            return existingIds;
+        } catch (error) {
+            console.error("Failed to check downloaded files:", error);
+            return [];
+        }
+    });
+
+    ipcMain.handle('check-files-existence', async (event, paths) => {
+        const results = {};
+        for (const p of paths) {
+            if (!p) { results[p] = false; continue; }
+            results[p] = fs.existsSync(p);
+        }
+        return results;
+    });
+
+    ipcMain.handle('download-chat', async (event, vodId, streamerName, videoTitle, videoTimestamp, savePath, requestFileName) => {
+        try {
+            const sanitizedStreamer = streamerName.replace(/[<>:"/\\|?*]/g, "");
+            let fileNameBase;
+            if (requestFileName) {
+                fileNameBase = requestFileName.replace(/\.json$/i, "").replace(/[<>:"/\\|?*]/g, "");
+            } else {
+                const date = new Date(videoTimestamp);
+                const timestampStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                fileNameBase = `[${timestampStr}][${sanitizedStreamer}] ${videoTitle.replace(/[<>:"/\\|?*]/g, "")}`;
+            }
+            const folderPath = path.join(savePath, sanitizedStreamer);
+            const fullPathJson = path.join(folderPath, `${fileNameBase}.json`);
+            if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+
+            let nextMessageTime = 0;
+            let allChats = [];
+            let isFinished = false;
+            while (!isFinished) {
+                const url = `https://api.chzzk.naver.com/service/v1/videos/${vodId}/chats?playerMessageTime=${nextMessageTime}`;
+                const response = await fetch(url, {
+                    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+                });
+                if (!response.ok) throw new Error(response.status === 400 ? "NO_CHAT" : `Fetch failed: ${response.status}`);
+                const data = await response.json();
+                if (data.code !== 200 || !data.content) break;
+                if (data.content.videoChats) allChats.push(...data.content.videoChats);
+                nextMessageTime = data.content.nextPlayerMessageTime;
+                if (!nextMessageTime) isFinished = true;
+                await new Promise(r => setTimeout(r, 100));
+            }
+            fs.writeFileSync(fullPathJson, JSON.stringify({ data: allChats, meta: { vodId, streamerName, videoTitle, videoTimestamp, downloadDate: new Date().toISOString() } }, null, 2), "utf-8");
+            return { success: true, filePath: fullPathJson, fileName: `${fileNameBase}.json`, folderPath, chatCount: allChats.length };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('convert-local-json-to-ass', async (event, folderPath, fileName, settings) => {
+        try {
+            let jsonFilePath = path.join(folderPath, fileName);
+            if (!fs.existsSync(jsonFilePath)) {
+                if (fs.existsSync(folderPath)) {
+                    const match = fs.readdirSync(folderPath).find(f => f.endsWith(".json") && f.includes(fileName.replace(/\.json$/i, "").replace(/[<>:"/\\|?*]/g, "")));
+                    if (match) jsonFilePath = path.join(folderPath, match);
+                    else return { success: false, error: "JSON file not found" };
+                } else return { success: false, error: "Folder not found" };
+            }
+            const json = JSON.parse(fs.readFileSync(jsonFilePath, "utf-8"));
+            const chats = Array.isArray(json) ? json : (json.data || json.content?.videoChats || []);
+            let videoTimestamp = json.meta?.videoTimestamp;
+            if (!videoTimestamp) { // Fallback to filename parsing if metadata missing
+                const match = path.basename(jsonFilePath).match(/^\[(\d{4}-\d{2}-\d{2})\]/);
+                if (match) videoTimestamp = new Date(match[1]).getTime();
+            }
+            if (!videoTimestamp && chats.length > 0) videoTimestamp = chats[0].messageTime;
+            const assContent = generateAssFromChats(chats, settings, videoTimestamp || 0);
+            const assFilePath = jsonFilePath.replace(/\.json$/i, ".ass");
+            fs.writeFileSync(assFilePath, "\uFEFF" + assContent, "utf-8");
+            return { success: true, filePath: assFilePath };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    if (app.isPackaged) {
+        const outPath = path.join(__dirname, '../out/index.html');
+        console.log(`[Main] Loading file: ${outPath}`);
+        mainWindow.loadFile(outPath);
+    } else {
+        const startUrl = process.env.ELECTRON_START_URL || 'http://localhost:3000';
+        console.log(`[Main] Loading URL: ${startUrl}`);
+        mainWindow.loadURL(startUrl);
+    }
+
+    if (!app.isPackaged) {
+        // DevTools auto-opening removed to reduce terminal noise
+        // You can open manually with Ctrl+Shift+I if needed
+        // mainWindow.webContents.openDevTools();
+    }
 
     // Security: Content Security Policy (CSP)
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

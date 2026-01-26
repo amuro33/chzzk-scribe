@@ -23,7 +23,7 @@ import { Info } from "lucide-react";
 import { ScreenPositionSelector } from "@/components/screen-position-selector";
 import { useAppStore, type VOD, type DownloadItem } from "@/lib/store";
 import { cn, generateFileName } from "@/lib/utils";
-import { convertLocalJsonToAss } from "@/app/actions";
+import { ipcBridge } from "@/lib/ipc-bridge";
 import { toast } from "sonner";
 
 interface ChatDownloadModalProps {
@@ -70,7 +70,7 @@ export function ChatDownloadModal({
       console.log(`[Convert] Attempting to find file at: ${folderPath}/${item.fileName}`);
 
       try {
-        const result = await convertLocalJsonToAss(
+        const result = await ipcBridge.convertLocalJsonToAss(
           folderPath,
           item.fileName,
           chatSettings
@@ -81,7 +81,7 @@ export function ChatDownloadModal({
           onOpenChange(false);
         } else {
           // Try fallback: maybe file is in root savePath?
-          const retryResult = await convertLocalJsonToAss(
+          const retryResult = await ipcBridge.convertLocalJsonToAss(
             item.savePath,
             item.fileName,
             chatSettings

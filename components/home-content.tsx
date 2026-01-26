@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useAppStore, type Streamer } from "@/lib/store";
-import { searchChannels, getChannelSocials } from "@/app/actions";
+import { ipcBridge } from "@/lib/ipc-bridge";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 
@@ -211,7 +211,7 @@ export function HomeContent() {
 
     setIsSearching(true);
     try {
-      const results = await searchChannels(searchQuery);
+      const results = await ipcBridge.searchChannels(searchQuery);
       setSearchResults(results);
     } catch (error) {
       console.error("Search failed", error);
@@ -221,7 +221,7 @@ export function HomeContent() {
   };
 
   const handleAddStreamer = async (streamer: any) => {
-    const socials = await getChannelSocials(streamer.id);
+    const socials = await ipcBridge.getChannelSocials(streamer.id);
 
     addFavoriteStreamer({
       id: streamer.id,

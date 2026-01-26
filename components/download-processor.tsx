@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAppStore } from "@/lib/store";
-import { downloadChat, startVideoDownload, getVideoDownloadStatus, getVodBitrate } from "@/app/actions";
+import { ipcBridge } from "@/lib/ipc-bridge";
 import { toast } from "sonner";
 
 export function DownloadProcessor() {
@@ -22,7 +22,7 @@ export function DownloadProcessor() {
                 return;
             }
 
-            const status = await getVideoDownloadStatus(itemId);
+            const status = await ipcBridge.getVideoDownloadStatus(itemId);
             if (status) {
                 if (status.status === "completed") {
                     clearInterval(pollInterval);
@@ -110,7 +110,7 @@ export function DownloadProcessor() {
                     console.log(`[Processor] Found active item not being polled: ${item.id}`);
                     processingRef.current.add(item.id);
                     // Verify if job exists on server
-                    const status = await getVideoDownloadStatus(item.id);
+                    const status = await ipcBridge.getVideoDownloadStatus(item.id);
                     if (status) {
                         startPolling(item.id);
                     } else {
@@ -138,7 +138,7 @@ export function DownloadProcessor() {
                     try {
                         if (item.type === "chat") {
                             updateDownload(item.id, { status: "downloading", progress: 0 });
-                            const result = await downloadChat(
+                            const result = await ipcBridge.downloadChat(
                                 item.vodId,
                                 item.streamerName || "Unknown",
                                 item.title,
@@ -175,7 +175,7 @@ export function DownloadProcessor() {
                             let bitrateBps = item.bitrateBps;
                             if (!bitrateBps && appSettings.downloadEngine === "streamlink") {
                                 try {
-                                    bitrateBps = await getVodBitrate(item.vodId, item.resolution) ?? undefined;
+                                    bitrateBps = await ipcBridge.getVodBitrate(item.vodId, item.resolution) ?? undefined;
                                     if (bitrateBps) {
                                         console.log(`[Processor] Got bitrate for ${item.vodId}: ${bitrateBps} bps`);
                                     }
@@ -184,13 +184,13 @@ export function DownloadProcessor() {
                                 }
                             }
 
-                            await startVideoDownload(
+                            await ipcBridge.startVideoDownload(
                                 item.id,
                                 videoUrl,
                                 item.savePath || "Downloads",
                                 item.fileName,
-                                item.streamerName,
-                                item.resolution,
+                                item.streamerName || "Unknown",
+                                item.resolution || "best",
                                 cookies,
                                 appSettings.maxConcurrentFragments || 16,
                                 appSettings.downloadEngine,
