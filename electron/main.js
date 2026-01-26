@@ -4,9 +4,6 @@ const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 const checkDiskSpace = require('check-disk-space').default;
 
-// Disable hardware acceleration to prevent black screen on some Windows 11 systems
-app.disableHardwareAcceleration();
-
 // Suppress known noisy internal DevTools errors for a cleaner terminal
 app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication,VisualLogging,PerformanceControls');
 app.commandLine.appendSwitch('log-level', '3'); // Only show errors
@@ -531,8 +528,6 @@ async function createWindow() {
         mainWindow = null;
     });
 }
-
-app.disableHardwareAcceleration(); // Added for debugging
 
 app.on('ready', createWindow);
 
