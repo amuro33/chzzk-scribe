@@ -344,6 +344,53 @@ async function createWindow() {
 
     ipcMain.handle('open-external', async (e, url) => { shell.openExternal(url); });
     ipcMain.handle('open-path', async (e, p) => { shell.openPath(p); });
+
+    ipcMain.handle('open-naver-login', async () => {
+        return new Promise((resolve) => {
+            const loginWin = new BrowserWindow({
+                width: 500,
+                height: 700,
+                parent: mainWindow,
+                modal: true,
+                autoHideMenuBar: true,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                    sandbox: true
+                }
+            });
+
+            loginWin.loadURL('https://nid.naver.com/nidlogin.login');
+
+            const checkCookies = async () => {
+                const cookies = await session.defaultSession.cookies.get({ domain: '.naver.com' });
+                const nidAut = cookies.find(c => c.name === 'NID_AUT')?.value;
+                const nidSes = cookies.find(c => c.name === 'NID_SES')?.value;
+
+                if (nidAut && nidSes) {
+                    resolve({ nidAut, nidSes });
+                    loginWin.close();
+                }
+            };
+
+            loginWin.webContents.on('did-navigate', checkCookies);
+            loginWin.webContents.on('did-frame-navigate', checkCookies);
+
+            loginWin.on('closed', () => {
+                resolve(null);
+            });
+        });
+    });
+
+    ipcMain.handle('logout-naver', async () => {
+        const cookies = await session.defaultSession.cookies.get({ domain: '.naver.com' });
+        for (const cookie of cookies) {
+            const url = `https${cookie.secure ? 's' : ''}://${cookie.domain}${cookie.path}`;
+            await session.defaultSession.cookies.remove(url, cookie.name);
+        }
+        return true;
+    });
+
     ipcMain.handle('get-app-version', () => app.getVersion());
     ipcMain.handle('quit-and-install', () => { autoUpdater.quitAndInstall(); });
 
