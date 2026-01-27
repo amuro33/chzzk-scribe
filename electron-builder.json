@@ -48,8 +48,6 @@
         "shortcutName": "치지직 스크라이브",
         "createDesktopShortcut": true,
         "createStartMenuShortcut": true,
-        "installerIcon": "public/icon.png",
-        "uninstallerIcon": "public/icon.png",
         "runAfterFinish": true,
         "artifactName": "${productName} ${version} Installer.${ext}"
     },
