@@ -9,35 +9,23 @@
         "electron/**/*",
         "lib/**/*",
         "out/**/*",
-        ".next/**/*",
         "public/**/*",
+        "bin/**/*",
         "node_modules/**/*"
-    ],
-    "extraResources": [
-        {
-            "from": "bin",
-            "to": "bin",
-            "filter": [
-                "**/*"
-            ]
-        }
     ],
     "win": {
         "target": [
             {
                 "target": "nsis",
                 "arch": [
-                    "x64"
+                    "x64",
+                    "ia32"
                 ]
             },
-            {
-                "target": "portable",
-                "arch": [
-                    "x64"
-                ]
-            }
+            "portable"
         ],
-        "icon": "public/icon.png"
+        "icon": "public/icon.png",
+        "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
         "oneClick": false,
@@ -45,10 +33,9 @@
         "shortcutName": "치지직 스크라이브",
         "createDesktopShortcut": true,
         "createStartMenuShortcut": true,
-        "artifactName": "${productName} ${version} Installer.${ext}"
-    },
-    "portable": {
-        "artifactName": "${productName} ${version} Portable.${ext}"
+        "installerIcon": "public/icon.png",
+        "uninstallerIcon": "public/icon.png",
+        "runAfterFinish": true
     },
     "publish": {
         "provider": "github",
