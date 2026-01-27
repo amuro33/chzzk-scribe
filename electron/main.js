@@ -22,6 +22,34 @@ process.on('unhandledRejection', (reason) => {
 });
 
 let mainWindow;
+let splashWindow;
+
+function createSplashWindow() {
+    splashWindow = new BrowserWindow({
+        width: 300,
+        height: 260,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        center: true,
+        show: false,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+        },
+    });
+
+    splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+    splashWindow.once('ready-to-show', () => {
+        splashWindow.show();
+    });
+}
+
+function updateSplashStatus(message) {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.webContents.send('status', message);
+    }
+}
 
 async function createWindow() {
     mainWindow = new BrowserWindow({
@@ -47,16 +75,21 @@ async function createWindow() {
     });
 
     mainWindow.once('ready-to-show', () => {
-        mainWindow.show();
-        setTimeout(() => {
-            if (mainWindow) {
-                mainWindow.setAlwaysOnTop(true, 'screen-saver');
-                mainWindow.setAlwaysOnTop(true);
-                mainWindow.focus();
-                mainWindow.show();
-                setTimeout(() => { if (mainWindow) mainWindow.setAlwaysOnTop(false); }, 1000);
-            }
-        }, 100);
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.close();
+        }
+        if (mainWindow) {
+            mainWindow.show();
+            setTimeout(() => {
+                if (mainWindow) {
+                    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+                    mainWindow.setAlwaysOnTop(true);
+                    mainWindow.focus();
+                    mainWindow.show();
+                    setTimeout(() => { if (mainWindow) mainWindow.setAlwaysOnTop(false); }, 1000);
+                }
+            }, 100);
+        }
     });
 
     ipcMain.on('window-minimize', () => mainWindow?.minimize());
@@ -129,6 +162,7 @@ async function createWindow() {
     });
 
     ipcMain.handle('get-vod-bitrate', async (e, videoNo, res) => {
+        updateSplashStatus("비트레이트 정보 요청 중...");
         try {
             const r = await fetch(`https://api.chzzk.naver.com/service/v1/videos/${videoNo}/video-playback-json`, { headers: { "User-Agent": "Mozilla/5.0" } });
             const d = await r.json();
@@ -287,11 +321,23 @@ async function createWindow() {
     ipcMain.handle('get-app-version', () => app.getVersion());
     ipcMain.handle('quit-and-install', () => { autoUpdater.quitAndInstall(); });
 
-    if (app.isPackaged) await loadURL(mainWindow);
-    else mainWindow.loadURL(process.env.ELECTRON_START_URL || 'http://localhost:3000');
+    if (app.isPackaged) {
+        updateSplashStatus("리소스 로드 중...");
+        await loadURL(mainWindow);
+    }
+    else {
+        updateSplashStatus("개발 서버 연결 중...");
+        mainWindow.loadURL(process.env.ELECTRON_START_URL || 'http://localhost:3000');
+    }
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+    createSplashWindow();
+    setTimeout(() => {
+        updateSplashStatus("애플리케이션 초기화 중...");
+        createWindow();
+    }, 500);
+});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 // Removed redundant get-version as get-app-version is now the standard handler
 ipcMain.handle('check-for-updates', async () => {
