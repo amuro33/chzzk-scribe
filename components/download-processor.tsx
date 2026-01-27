@@ -194,10 +194,10 @@ export function DownloadProcessor() {
                                 cookies,
                                 appSettings.maxConcurrentFragments || 16,
                                 appSettings.downloadEngine,
-                                appSettings.streamlinkPortable ? appSettings.streamlinkPath : undefined,
-                                item.durationSeconds,
-                                bitrateBps,
-                                appSettings.tempPath, // Pass temp path setting
+                                appSettings.streamlinkPortable ? (appSettings.streamlinkPath || "") : "",
+                                item.durationSeconds || 0,
+                                bitrateBps || 0,
+                                appSettings.tempPath || "", // Pass temp path setting
                                 appSettings.saveThumbnail ? item.thumbnailUrl : undefined
                             );
 

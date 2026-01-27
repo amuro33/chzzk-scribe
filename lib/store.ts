@@ -90,6 +90,7 @@ export interface AppSettings {
   tempPath?: string;
   filenameTemplate?: string;
   saveThumbnail?: boolean;
+  downloadEngine: "ffmpeg" | "streamlink";
 }
 
 interface AppState {
@@ -150,6 +151,7 @@ const defaultAppSettings: AppSettings = {
   tempPath: "",
   filenameTemplate: "{title}",
   saveThumbnail: false,
+  downloadEngine: "ffmpeg",
 };
 
 export const useAppStore = create<AppState>()(

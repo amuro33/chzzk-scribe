@@ -197,8 +197,9 @@ export default function DownloadsPage() {
         }
       }
 
-      const success = await ipcBridge.openPath(targetPath);
-      if (!success) {
+      const error = await ipcBridge.openPath(targetPath);
+      // shell.openPath returns an empty string "" on success, or an error message on failure
+      if (error && error !== "") {
         // Fallback to parent if the specific streamer folder doesn't exist yet
         await ipcBridge.openPath(folderPath);
       }

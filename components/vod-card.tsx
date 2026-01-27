@@ -104,7 +104,7 @@ export function VODCard({ vod, onDownload, onChatDownload, isCompact = false }: 
     <>
       <div
         className={`group relative flex flex-col gap-0 rounded-xl border bg-card transition-all duration-200 ${isHovered ? "border-primary/60 shadow-xl shadow-primary/10" : "shadow-lg shadow-black/20"
-          } ${vod.isDownloaded ? "opacity-80 border-primary/50" : "border-border"}`}
+          } border-border`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -133,13 +133,7 @@ export function VODCard({ vod, onDownload, onChatDownload, isCompact = false }: 
           <div className="absolute bottom-2 right-2 rounded-md bg-black/80 px-2 py-1 text-xs font-semibold text-white backdrop-blur-sm z-20">
             {vod.duration}
           </div>
-          {vod.isDownloaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-20">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary shadow-lg">
-                <Check className="h-6 w-6 text-primary-foreground" />
-              </div>
-            </div>
-          )}
+
         </div>
 
         <div className="flex flex-1 flex-col justify-between gap-3 p-4">
@@ -153,14 +147,7 @@ export function VODCard({ vod, onDownload, onChatDownload, isCompact = false }: 
                   NEW
                 </Badge>
               )}
-              {vod.isDownloaded && (
-                <Badge
-                  variant="secondary"
-                  className="shrink-0 bg-primary/20 text-primary font-medium text-[10px] px-1.5 h-5"
-                >
-                  Down
-                </Badge>
-              )}
+
             </div>
             <p className="text-xs text-muted-foreground font-medium mb-1">{vod.date}</p>
             <p className="text-xs text-muted-foreground">{vod.streamerName}</p>
@@ -179,11 +166,7 @@ export function VODCard({ vod, onDownload, onChatDownload, isCompact = false }: 
                 >
                   <Download className="h-3.5 w-3.5" />
                   {!isCompact && "비디오"}
-                  {isVideoDownloaded && (
-                    <div className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 border-2 border-background shadow-sm z-10">
-                      <Check className="h-3 w-3 text-white stroke-[2]" />
-                    </div>
-                  )}
+
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48 bg-popover border-border shadow-xl">

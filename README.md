@@ -1,6 +1,6 @@
 # Chzzk Scribe (치지직 스크라이브)
 
-치지직(Chzzk) VOD 및 채팅 데이터를 손쉽게 다운로드하고 관리할 수 있는 강력한 데스크탑 어플리케이션입니다.
+치지직(Chzzk) VOD 및 채팅 데이터를 손쉽게 다운로드하고 관리할 수 있는 데스크탑 어플리케이션입니다.
 
 <p align="center">
   <img src="public/readme_preview.png" width="600" alt="Preview Image" />
@@ -8,29 +8,8 @@
 
 ## ✨ 주요 기능
 
-- **VOD 다운로드**: 치지직의 고화질 VOD를 빠른 속도로 다운로드할 수 있습니다. (Streamlink 기반)
-- **채팅 자막 변환**: 채팅 내역을 추출하여 실제 방송 화면의 오버레이처럼 보이는 **ASS 자막**으로 변환합니다.
+- **채팅 자막 변환**: 채팅 내역을 추출하여 실제 방송 화면의 오버레이처럼 보이는 **ASS 자막**으로 변환 가능합니다. (VOD 다운로드는 덤 입니다)
 
-## 🚀 빠른 시작
-
-### 설치 방법
-1. 프로젝트를 클론합니다.
-   ```bash
-   git clone https://github.com/amuro33/chzzk-scribe.git
-   ```
-2. 의존성 패키지를 설치합니다.
-   ```bash
-   npm install
-   ```
-3. 개발 모드로 실행합니다.
-   ```bash
-   npm run dev
-   ```
-
-## 🛠 기술 스택
-- **Framework**: Next.js, Electron
-- **UI**: Tailwind CSS, Shadcn UI
-- **Engine**: Streamlink, FFmpeg
 
 ## 🔒 보안 및 개인정보 보호
 

@@ -131,6 +131,8 @@ export function ChatDownloadModal({
         speed: "-",
         eta: "-",
         savePath: appSettings.downloadPath,
+        timestamp: vod.timestamp,
+        streamerName: vod.streamerName,
       };
       addDownload(download);
     });

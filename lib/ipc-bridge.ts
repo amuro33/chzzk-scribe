@@ -29,9 +29,9 @@ export const ipcBridge = {
         if (!isElectron) return [];
         return window.electron.getChannelSocials(channelId);
     },
-    startVideoDownload: async (jobId: string, url: string, basePath: string, fileName: string, streamerName: string, resolution: string, cookies: any, maxFragments: number, streamlinkPath: string, durationSeconds: number, bitrateBps: number, tempPath: string, thumbnailUrl: string) => {
+    startVideoDownload: async (jobId: string, url: string, basePath: string, fileName: string, streamerName: string, resolution: string, cookies: any, maxFragments: number, downloadEngine: string, streamlinkPath: string, durationSeconds: number, bitrateBps: number, tempPath: string, thumbnailUrl?: string) => {
         if (!isElectron) return { success: false };
-        return window.electron.startVideoDownload(jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl);
+        return window.electron.startVideoDownload(jobId, url, basePath, fileName, streamerName, resolution, cookies, maxFragments, downloadEngine, streamlinkPath, durationSeconds, bitrateBps, tempPath, thumbnailUrl);
     },
     getVideoDownloadStatus: async (jobId: string) => {
         if (!isElectron) return null;
