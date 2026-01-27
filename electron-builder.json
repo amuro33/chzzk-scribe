@@ -13,6 +13,9 @@
         "bin/**/*",
         "node_modules/**/*"
     ],
+    "asarUnpack": [
+        "**/node_modules/ffmpeg-static/**/*"
+    ],
     "win": {
         "target": [
             {
