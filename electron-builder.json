@@ -10,8 +10,16 @@
         "lib/**/*",
         "out/**/*",
         "public/**/*",
-        "bin/**/*",
         "node_modules/**/*"
+    ],
+    "extraResources": [
+        {
+            "from": "bin",
+            "to": "bin",
+            "filter": [
+                "**/*"
+            ]
+        }
     ],
     "asarUnpack": [
         "**/node_modules/ffmpeg-static/**/*"
