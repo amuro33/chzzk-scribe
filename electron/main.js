@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, session, shell, dialog, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const { autoUpdater } = require('electron-updater');
 const checkDiskSpace = require('check-disk-space').default;
 const serve = require('electron-serve');
@@ -48,6 +49,77 @@ function createSplashWindow() {
 function updateSplashStatus(message) {
     if (splashWindow && !splashWindow.isDestroyed()) {
         splashWindow.webContents.send('status', message);
+    }
+}
+
+async function downloadFile(url, dest, onProgress) {
+    return new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(dest);
+        const request = https.get(url, (response) => {
+            if (response.statusCode === 302 || response.statusCode === 301) {
+                downloadFile(response.headers.location, dest, onProgress).then(resolve).catch(reject);
+                return;
+            }
+            if (response.statusCode !== 200) {
+                reject(new Error(`Failed to download: ${response.statusCode}`));
+                return;
+            }
+
+            const totalSize = parseInt(response.headers['content-length'], 10);
+            let downloadedSize = 0;
+
+            response.on('data', (chunk) => {
+                downloadedSize += chunk.length;
+                file.write(chunk);
+                if (onProgress && totalSize) {
+                    onProgress((downloadedSize / totalSize) * 100);
+                }
+            });
+
+            response.on('end', () => {
+                file.end();
+                resolve();
+            });
+        });
+
+        request.on('error', (err) => {
+            fs.unlink(dest, () => reject(err));
+        });
+    });
+}
+
+async function ensureFFmpeg() {
+    const binDir = path.join(app.getPath('userData'), 'bin');
+    const ffmpegPath = path.join(binDir, process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
+
+    if (fs.existsSync(ffmpegPath)) return ffmpegPath;
+
+    if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
+
+    updateSplashStatus("ffmpeg가 없습니다. 다운로드를 시작합니다...");
+
+    // Using a reliable mirror or github release
+    const baseUrl = "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1";
+    let platformUrl = "";
+    if (process.platform === 'win32') platformUrl = `${baseUrl}/ffmpeg-win32-x64`;
+    else if (process.platform === 'darwin') platformUrl = `${baseUrl}/ffmpeg-darwin-x64`; // Simplified
+    else platformUrl = `${baseUrl}/ffmpeg-linux-x64`;
+
+    try {
+        await downloadFile(platformUrl, ffmpegPath, (percent) => {
+            updateSplashStatus(`ffmpeg 다운로드 중... ${percent.toFixed(1)}%`);
+        });
+
+        if (process.platform !== 'win32') {
+            fs.chmodSync(ffmpegPath, 0o755);
+        }
+
+        updateSplashStatus("ffmpeg 다운로드 완료!");
+        return ffmpegPath;
+    } catch (err) {
+        console.error("FFmpeg download failed:", err);
+        updateSplashStatus("ffmpeg 다운로드 실패. 설정을 확인하세요.");
+        throw err;
     }
 }
 
@@ -331,12 +403,20 @@ async function createWindow() {
     }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
     createSplashWindow();
-    setTimeout(() => {
+
+    try {
+        await new Promise(r => setTimeout(r, 500));
+        updateSplashStatus("시스템 구성 확인 중...");
+        await ensureFFmpeg();
+
         updateSplashStatus("애플리케이션 초기화 중...");
         createWindow();
-    }, 500);
+    } catch (err) {
+        dialog.showErrorBox("초기화 실패", `필수 구성 요소(ffmpeg)를 준비하지 못했습니다: ${err.message}`);
+        app.quit();
+    }
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 // Removed redundant get-version as get-app-version is now the standard handler
