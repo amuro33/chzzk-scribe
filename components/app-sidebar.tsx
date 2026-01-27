@@ -143,7 +143,7 @@ export function AppSidebar() {
               href = `/search?streamer=${lastActiveStreamerId}`;
             }
 
-            const isActive = pathname === item.href || (item.label === "Search" && pathname.startsWith("/search"));
+            const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
             let badgeCount = 0;
             if (item.label === "Downloads") badgeCount = activeVideoCount;
@@ -184,7 +184,7 @@ export function AppSidebar() {
                 href={settingsItem.href}
                 className={cn(
                   "relative flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200",
-                  pathname === settingsItem.href
+                  pathname.startsWith(settingsItem.href)
                     ? "bg-primary/20 text-primary shadow-md shadow-primary/20"
                     : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
                 )}

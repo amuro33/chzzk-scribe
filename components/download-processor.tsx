@@ -157,7 +157,15 @@ export function DownloadProcessor() {
                                 });
                                 toast.success(`다운로드 완료: ${result.fileName}`);
                             } else {
-                                throw new Error(result.error);
+                                if (result.error === "자막은 지난방송만 다운로드 가능합니다. 업로드 영상은 채팅이 존재하지않습니다.") {
+                                    state.removeDownload(item.id);
+                                } else {
+                                    updateDownload(item.id, {
+                                        status: "failed",
+                                        error: result.error || "자막 다운로드 실패"
+                                    });
+                                }
+                                toast.error(result.error || "자막 다운로드 실패");
                             }
                             processingRef.current.delete(item.id); // Done
                         }

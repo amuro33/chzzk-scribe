@@ -301,6 +301,14 @@ async function createWindow() {
                 nextMessageTime = curNext;
                 await new Promise(res => setTimeout(res, 50));
             }
+
+            if (allChats.length === 0) {
+                return {
+                    success: false,
+                    error: "자막은 지난방송만 다운로드 가능합니다. 업로드 영상은 채팅이 존재하지않습니다."
+                };
+            }
+
             fs.writeFileSync(fullPathJson, JSON.stringify({ data: allChats, meta: { vodId, streamerName, videoTitle, videoTimestamp, downloadDate: new Date().toISOString() } }, null, 2), "utf-8");
             return { success: true, filePath: fullPathJson, fileName: `${fileNameBase}.json`, folderPath, chatCount: allChats.length };
         } catch (err) { return { success: false, error: err.message }; }
