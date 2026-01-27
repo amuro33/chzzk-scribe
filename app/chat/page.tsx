@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Ghost } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DownloadItem } from "@/components/download-item";
 import { ipcBridge } from "@/lib/ipc-bridge";
@@ -182,8 +182,17 @@ export default function ChatPage() {
 
     if (items.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-muted-foreground">다운로드된 채팅이 없습니다</p>
+        <div className="relative flex flex-col items-center justify-center py-24 text-center">
+          <div className="absolute inset-0 flex items-center justify-center opacity-20 blur-3xl pointer-events-none">
+            <div className="h-64 w-64 rounded-full bg-primary/20" />
+          </div>
+          <div className="relative">
+            <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/5 shadow-inner">
+              <Ghost className="h-10 w-10 text-primary animate-pulse" />
+            </div>
+          </div>
+          <p className="text-muted-foreground font-medium">다운로드된 채팅이 없습니다</p>
+          <p className="mt-1 text-xs text-muted-foreground/60">스트리머의 다시보기에서 채팅을 다운로드해 보세요</p>
         </div>
       );
     }
