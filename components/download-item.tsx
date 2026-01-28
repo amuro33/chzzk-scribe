@@ -128,8 +128,8 @@ export function DownloadItem({
             <div className="text-center text-white">
               {item.status === "converting" ? (
                 <>
-                  <div className="font-bold text-lg animate-pulse">Converting...</div>
-                  <div className="text-xs opacity-80">Finalizing video</div>
+                  <div className="font-bold text-lg animate-pulse">마무리 작업 중</div>
+                  <div className="text-xs opacity-80">메타데이터 처리 중</div>
                 </>
               ) : (
                 <>

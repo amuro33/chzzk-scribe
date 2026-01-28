@@ -1,6 +1,6 @@
 {
     "appId": "com.chzzk.scribe",
-    "productName": "치지직 스크라이브",
+    "productName": "chzzk-scribe",
     "directories": {
         "output": "dist_electron"
     },
@@ -22,7 +22,7 @@
         }
     ],
     "asarUnpack": [
-        "**/node_modules/ffmpeg-static/**/*"
+        "**/node_modules/@ffmpeg-installer/**/*"
     ],
     "win": {
         "target": [
@@ -33,7 +33,7 @@
                 ]
             },
             {
-                "target": "portable",
+                "target": "zip",
                 "arch": [
                     "x64"
                 ]
@@ -51,7 +51,7 @@
         "runAfterFinish": true,
         "artifactName": "${productName} ${version} Installer.${ext}"
     },
-    "portable": {
+    "zip": {
         "artifactName": "${productName} ${version} Portable.${ext}"
     },
     "publish": {

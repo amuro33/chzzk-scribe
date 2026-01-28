@@ -1,12 +1,11 @@
 const { app, BrowserWindow, ipcMain, session, shell, dialog, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const https = require('https');
-const { autoUpdater } = require('electron-updater');
-const checkDiskSpace = require('check-disk-space').default;
-const serve = require('electron-serve');
 
-const loadURL = serve({ directory: 'out' });
+// Lazy-loaded modules (loaded when needed)
+let autoUpdater;
+let checkDiskSpace;
+let loadURL;
 
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('high-dpi-support', '1');
@@ -53,12 +52,12 @@ function updateSplashStatus(message) {
 }
 
 async function ensureFFmpeg() {
-    // Priority: bundled ffmpeg-static
+    // Priority: bundled @ffmpeg-installer/ffmpeg (lazy load, smaller size)
     try {
-        const ffmpeg = require('ffmpeg-static');
-        if (ffmpeg && fs.existsSync(ffmpeg)) return ffmpeg;
+        const ffmpeg = require('@ffmpeg-installer/ffmpeg');
+        if (ffmpeg.path && fs.existsSync(ffmpeg.path)) return ffmpeg.path;
     } catch (e) {
-        console.error("Failed to load bundled ffmpeg-static:", e);
+        console.error("Failed to load bundled @ffmpeg-installer/ffmpeg:", e);
     }
 
     // Fallback: check manual bin folder
@@ -125,6 +124,7 @@ async function createWindow() {
 
     ipcMain.handle('get-disk-usage', async (e, folderPath) => {
         try {
+            if (!checkDiskSpace) checkDiskSpace = require('check-disk-space').default;
             const p = folderPath && fs.existsSync(folderPath) ? folderPath : app.getPath('userData');
             const d = await checkDiskSpace(p);
             return { free: d.free, size: d.size, label: path.parse(p).root };
@@ -155,6 +155,7 @@ async function createWindow() {
         } catch (err) { return false; }
     });
 
+    // Lazy load heavy modules when needed
     const { generateAssFromChats } = require('../lib/ass-converter.js');
     const { videoDownloader } = require('../lib/video-downloader.js');
 
@@ -392,10 +393,17 @@ async function createWindow() {
     });
 
     ipcMain.handle('get-app-version', () => app.getVersion());
-    ipcMain.handle('quit-and-install', () => { autoUpdater.quitAndInstall(); });
+    ipcMain.handle('quit-and-install', () => {
+        if (!autoUpdater) autoUpdater = require('electron-updater').autoUpdater;
+        autoUpdater.quitAndInstall();
+    });
 
     if (app.isPackaged) {
         updateSplashStatus("리소스 로드 중...");
+        if (!loadURL) {
+            const serve = require('electron-serve');
+            loadURL = serve({ directory: 'out' });
+        }
         await loadURL(mainWindow);
     }
     else {
@@ -405,18 +413,33 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+    // Show splash immediately on app start
+    const splashStartTime = Date.now();
     createSplashWindow();
-
+    
+    // Start loading main window in background (show: false)
+    updateSplashStatus("애플리케이션 초기화 중...");
+    
     try {
-        // Reduced initial delay
-        await new Promise(r => setTimeout(r, 300));
-        updateSplashStatus("시스템 구성 확인 중...");
-
-        // Just verify it exists, don't block start if missing (will fail during download instead)
-        await ensureFFmpeg();
-
-        updateSplashStatus("애플리케이션 초기화 중...");
-        createWindow();
+        // Run initialization in parallel with minimum splash time
+        const initPromise = (async () => {
+            const ffmpegCheck = ensureFFmpeg();
+            updateSplashStatus("시스템 구성 확인 중...");
+            await ffmpegCheck;
+            createWindow();
+        })();
+        
+        // Ensure splash is shown for at least 1.5 seconds (prevents flicker)
+        const minSplashTime = new Promise(r => setTimeout(r, 1500));
+        
+        // Wait for both initialization and minimum splash time
+        await Promise.all([initPromise, minSplashTime]);
+        
+        // Additional small delay to ensure smooth transition
+        const elapsed = Date.now() - splashStartTime;
+        if (elapsed < 1500) {
+            await new Promise(r => setTimeout(r, 1500 - elapsed));
+        }
     } catch (err) {
         console.error("Initialization error:", err);
         createWindow(); // Try to open anyway
@@ -425,6 +448,10 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 // Removed redundant get-version as get-app-version is now the standard handler
 ipcMain.handle('check-for-updates', async () => {
-    try { const r = await autoUpdater.checkForUpdatesAndNotify(); return r || { updateInfo: { version: app.getVersion() } }; }
+    try {
+        if (!autoUpdater) autoUpdater = require('electron-updater').autoUpdater;
+        const r = await autoUpdater.checkForUpdatesAndNotify();
+        return r || { updateInfo: { version: app.getVersion() } };
+    }
     catch (e) { return { error: e.message }; }
 });

@@ -48,7 +48,7 @@ export function DownloadProcessor() {
                         progress: 100,
                         downloadedSize: status.downloadedSize,
                         totalSize: status.totalSize,
-                        eta: "Converting...",
+                        eta: "마무리 작업 중",
                         folderPath: status.folderPath
                     });
                 } else if (status.status === "downloading") {
