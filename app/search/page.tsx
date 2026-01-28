@@ -40,7 +40,7 @@ function SearchPageContent() {
   const searchParams = useSearchParams();
   const streamerId = searchParams.get("streamer");
 
-  const { downloads, addDownload, appSettings, addFavoriteStreamer, favoriteStreamers, lastActiveStreamerId, setLastActiveStreamerId } = useAppStore();
+  const { downloads, addDownload, updateDownload, appSettings, addFavoriteStreamer, favoriteStreamers, lastActiveStreamerId, setLastActiveStreamerId } = useAppStore();
   const router = useRouter();
   const activeDownloads = downloads.filter(
     (d) => d.status === "downloading" || d.status === "queued"
@@ -120,6 +120,17 @@ function SearchPageContent() {
           }
         });
 
+        // Update thumbnails for existing downloads (especially for age-restricted VODs)
+        mappedVods.forEach(vod => {
+          if (vod.thumbnailUrl) {
+            downloads.forEach(download => {
+              if (download.vodId === String(vod.videoNo) && !download.thumbnailUrl) {
+                updateDownload(download.id, { thumbnailUrl: vod.thumbnailUrl });
+              }
+            });
+          }
+        });
+
       } else {
         if (favoriteStreamers.length === 0) {
           setVods([]);
@@ -161,6 +172,17 @@ function SearchPageContent() {
             setVods(prev => prev.map(v =>
               downloadedIds.includes(v.videoNo) ? { ...v, isDownloaded: true } : v
             ));
+          }
+        });
+
+        // Update thumbnails for existing downloads (especially for age-restricted VODs)
+        allVods.forEach(vod => {
+          if (vod.thumbnailUrl) {
+            downloads.forEach(download => {
+              if (download.vodId === String(vod.videoNo) && !download.thumbnailUrl) {
+                updateDownload(download.id, { thumbnailUrl: vod.thumbnailUrl });
+              }
+            });
           }
         });
       }

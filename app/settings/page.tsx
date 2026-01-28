@@ -1,6 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import { useSearchParams } from "next/navigation";
 
 import { FolderOpen, Monitor, Moon, Sun, Palette, Download, RefreshCcw, Info } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -34,6 +35,9 @@ import {
 import { Progress } from "@/components/ui/progress";
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams();
+  const isFirstTime = searchParams.get("firstTime") === "true";
+  
   const { downloads, appSettings, setAppSettings, resetSettings } = useAppStore();
   const { setTheme } = useTheme();
   const [appVersion, setAppVersion] = useState<string>("v1.0.0");
@@ -156,22 +160,48 @@ export default function SettingsPage() {
                 <h2 className="text-lg font-medium">다운로드</h2>
               </div>
 
-              <div className="grid gap-6 rounded-xl border bg-card p-6 shadow-sm">
-                <div className="grid gap-2">
-                  <Label>기본 저장 경로</Label>
+              <div className={`grid gap-6 rounded-xl border bg-card p-6 shadow-sm transition-all duration-500 ${
+                isFirstTime ? "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse" : ""
+              }`}>
+                {isFirstTime && (
+                  <div className="rounded-lg bg-primary/10 border border-primary/20 p-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                    <div className="flex items-start gap-3">
+                      <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-semibold text-primary mb-1">처음 오셨군요! 👋</p>
+                        <p className="text-sm text-muted-foreground">
+                          먼저 <strong className="text-foreground">기본 저장 경로</strong>를 설정해주세요. 
+                          다운로드한 영상과 채팅이 이 폴더에 저장됩니다.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className={`grid gap-2 ${isFirstTime ? "animate-in fade-in slide-in-from-left-2 duration-700 delay-300" : ""}`}>
+                  <Label className={isFirstTime ? "text-primary font-bold" : ""}>
+                    기본 저장 경로 {isFirstTime && <span className="text-primary">⬅️ 여기를 설정하세요!</span>}
+                  </Label>
                   <div className="flex gap-2">
                     <Input
                       value={appSettings.downloadPath}
                       onChange={(e) => setAppSettings({ downloadPath: e.target.value })}
                       className="bg-background font-mono text-sm"
+                      placeholder="폴더를 선택해주세요..."
                     />
                     <Button
                       variant="outline"
                       size="icon"
+                      className={isFirstTime ? "animate-bounce" : ""}
                       onClick={async () => {
                         if ((window as any).electron?.selectDirectory) {
                           const path = await (window as any).electron.selectDirectory(appSettings.downloadPath);
-                          if (path) setAppSettings({ downloadPath: path });
+                          if (path) {
+                            setAppSettings({ downloadPath: path });
+                            if (isFirstTime) {
+                              toast.success("저장 경로가 설정되었습니다! 이제 치지직 스크라이브를 사용할 준비가 되었습니다. 🎉");
+                            }
+                          }
                         }
                       }}
                     >

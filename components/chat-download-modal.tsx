@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,27 @@ export function ChatDownloadModal({
 }: ChatDownloadModalProps) {
   const { chatSettings, setChatSettings, addDownload, appSettings } =
     useAppStore();
+
+  // Auto-adjust maxLines when modal opens (only once on first open in convert mode)
+  useEffect(() => {
+    if (open && mode === "convert" && item?.chatCount) {
+      const targetSizeMB = 70;
+      const targetSizeBytes = targetSizeMB * 1024 * 1024;
+      const bytesPerLine = 140; // Approximate bytes per line
+      const baseBytes = 12; // Base overhead
+
+      // Calculate current estimated size
+      const currentEstimatedSize = item.chatCount * (bytesPerLine * chatSettings.maxLines + baseBytes);
+
+      // If over 70MB, calculate optimal maxLines to stay under 70MB
+      if (currentEstimatedSize > targetSizeBytes) {
+        const optimalMaxLines = Math.floor((targetSizeBytes / item.chatCount - baseBytes) / bytesPerLine);
+        const adjustedMaxLines = Math.max(5, Math.min(30, optimalMaxLines)); // Clamp between 5-30
+
+        setChatSettings({ maxLines: adjustedMaxLines });
+      }
+    }
+  }, [open, mode, item?.chatCount]); // Only run when modal opens or item changes
 
   const handleAction = async () => {
     if (mode === "convert") {
