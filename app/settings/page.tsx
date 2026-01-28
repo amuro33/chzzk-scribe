@@ -2,6 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
 import { FolderOpen, Monitor, Moon, Sun, Palette, Download, RefreshCcw, Info } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -34,7 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
 
-export default function SettingsPage() {
+function SettingsContent() {
   const searchParams = useSearchParams();
   const isFirstTime = searchParams.get("firstTime") === "true";
   
@@ -404,5 +405,25 @@ export default function SettingsPage() {
         </div>
       </main >
     </div >
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen bg-background">
+        <AppSidebar />
+        <main className="ml-16 flex-1 overflow-auto">
+          <div className="mx-auto max-w-2xl p-8">
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold tracking-tight">설정</h1>
+              <p className="text-muted-foreground">로딩 중...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    }>
+      <SettingsContent />
+    </Suspense>
   );
 }
