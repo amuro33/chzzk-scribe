@@ -40,7 +40,8 @@
             }
         ],
         "icon": "public/icon.png",
-        "requestedExecutionLevel": "asInvoker"
+        "requestedExecutionLevel": "asInvoker",
+        "artifactName": "${productName} ${version} Portable.${ext}"
     },
     "nsis": {
         "oneClick": false,
@@ -50,9 +51,6 @@
         "createStartMenuShortcut": true,
         "runAfterFinish": true,
         "artifactName": "${productName} ${version} Installer.${ext}"
-    },
-    "zip": {
-        "artifactName": "${productName} ${version} Portable.${ext}"
     },
     "publish": {
         "provider": "github",
