@@ -422,21 +422,15 @@ app.whenReady().then(async () => {
     updateSplashStatus("애플리케이션 초기화 중...");
     
     try {
-        // Run initialization in parallel with minimum splash time
-        const initPromise = (async () => {
-            const ffmpegCheck = ensureFFmpeg();
-            updateSplashStatus("시스템 구성 확인 중...");
-            await ffmpegCheck;
-            createWindow();
-        })();
+        // Check FFmpeg
+        const ffmpegCheck = ensureFFmpeg();
+        updateSplashStatus("시스템 구성 확인 중...");
+        await ffmpegCheck;
+        
+        // Create main window (will show when ready via ready-to-show event)
+        await createWindow();
         
         // Ensure splash is shown for at least 1.5 seconds (prevents flicker)
-        const minSplashTime = new Promise(r => setTimeout(r, 1500));
-        
-        // Wait for both initialization and minimum splash time
-        await Promise.all([initPromise, minSplashTime]);
-        
-        // Additional small delay to ensure smooth transition
         const elapsed = Date.now() - splashStartTime;
         if (elapsed < 1500) {
             await new Promise(r => setTimeout(r, 1500 - elapsed));

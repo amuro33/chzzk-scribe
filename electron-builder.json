@@ -1,6 +1,7 @@
 {
     "appId": "com.chzzk.scribe",
     "productName": "chzzk-scribe",
+    "compression": "maximum",
     "directories": {
         "output": "dist_electron"
     },
