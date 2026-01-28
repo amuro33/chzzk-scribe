@@ -7,6 +7,12 @@ let autoUpdater;
 let checkDiskSpace;
 let loadURL;
 
+// electron-serve 초기화 (패키지 버전에서만)
+if (app.isPackaged) {
+    const serve = require('electron-serve');
+    loadURL = serve({ directory: 'out' });
+}
+
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication,VisualLogging,PerformanceControls');
@@ -108,6 +114,16 @@ async function createWindow() {
             }, 100);
         }
     });
+
+    // Fallback: Force close splash after 10 seconds if ready-to-show doesn't fire
+    setTimeout(() => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.close();
+        }
+        if (mainWindow && !mainWindow.isVisible()) {
+            mainWindow.show();
+        }
+    }, 10000);
 
     ipcMain.on('window-minimize', () => mainWindow?.minimize());
     ipcMain.on('window-maximize', () => {
@@ -401,10 +417,6 @@ async function createWindow() {
 
     if (app.isPackaged) {
         updateSplashStatus("리소스 로드 중...");
-        if (!loadURL) {
-            const serve = require('electron-serve');
-            loadURL = serve({ directory: 'out' });
-        }
         await loadURL(mainWindow);
     }
     else {
