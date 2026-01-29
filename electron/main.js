@@ -297,6 +297,23 @@ async function createWindow() {
                 if (m) videoTs = new Date(m[1]).getTime();
             }
 
+            // Fetch liveOpenDate from v3 API if vodId is available
+            const vodId = json.meta?.vodId;
+            if (vodId) {
+                try {
+                    const r = await fetch(`https://api.chzzk.naver.com/service/v3/videos/${vodId}`, { headers: { "User-Agent": "Mozilla/5.0" } });
+                    if (r.ok) {
+                        const d = await r.json();
+                        const liveOpenDate = d.content?.liveOpenDate;
+                        if (liveOpenDate && typeof liveOpenDate === 'string') {
+                            videoTs = new Date(liveOpenDate).getTime();
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Failed to fetch liveOpenDate from v3 API:", err.message);
+                }
+            }
+
             const safeSettings = { fontSize: 32, maxLines: 15, boxWidth: 400, assPosition: "top-right", ...settings };
             const assContent = generateAssFromChats(chats, safeSettings, videoTs);
             const assPath = jsonPath.replace(/\.json$/i, ".ass");
