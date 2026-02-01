@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, session, shell, dialog, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { WhisperManager } = require('../lib/whisper-manager');
+const { TaskProcessor } = require('../lib/task-processor');
 
 // Lazy-loaded modules (loaded when needed)
 let autoUpdater;
@@ -93,7 +95,7 @@ async function createWindow() {
             sandbox: false,
             webSecurity: true,
             preload: path.join(__dirname, 'preload.js'),
-            devTools: !app.isPackaged,
+            devTools: true, // 항상 DevTools 허용
         },
     });
 
@@ -136,6 +138,24 @@ async function createWindow() {
     ipcMain.handle('select-directory', async (e, defaultPath) => {
         const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'], defaultPath });
         return result.canceled ? null : result.filePaths[0];
+    });
+
+    ipcMain.handle('select-file', async (e, filters) => {
+        const result = await dialog.showOpenDialog(mainWindow, { 
+            properties: ['openFile'], 
+            filters: filters || [{ name: 'Videos', extensions: ['mp4', 'mkv', 'avi', 'mov'] }]
+        });
+        return result.canceled ? null : result.filePaths[0];
+    });
+
+    ipcMain.handle('read-file', async (e, filePath) => {
+        try {
+            if (!fs.existsSync(filePath)) return null;
+            return fs.readFileSync(filePath, 'utf8');
+        } catch (err) {
+            console.error('Failed to read file:', err);
+            return null;
+        }
     });
 
     ipcMain.handle('get-disk-usage', async (e, folderPath) => {
@@ -230,6 +250,7 @@ async function createWindow() {
             speed: s.speed,
             eta: s.eta,
             fileName: s.fileName,
+            filePath: s.filePath,
             error: s.error,
             filePath: s.filePath,
             folderPath: s.filePath ? path.dirname(s.filePath) : (s.savePath || undefined)
@@ -470,6 +491,13 @@ app.whenReady().then(async () => {
     }
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
+app.on('before-quit', () => {
+    console.log('[Main] App is quitting, cleaning up tasks');
+    if (taskProcessor) {
+        taskProcessor.cleanup();
+    }
+});
 // Removed redundant get-version as get-app-version is now the standard handler
 ipcMain.handle('check-for-updates', async () => {
     try {
@@ -479,3 +507,114 @@ ipcMain.handle('check-for-updates', async () => {
     }
     catch (e) { return { error: e.message }; }
 });
+
+// Whisper Manager & Task Processor IPC
+let whisperManager;
+let taskProcessor;
+
+function getWhisperManager() {
+    if (!whisperManager) whisperManager = new WhisperManager();
+    return whisperManager;
+}
+
+function getTaskProcessor(webContents) {
+    if (!taskProcessor) {
+        taskProcessor = new TaskProcessor(getWhisperManager(), webContents);
+    } else if (webContents && (!taskProcessor.webContents || taskProcessor.webContents.isDestroyed())) {
+        taskProcessor.webContents = webContents;
+    }
+    return taskProcessor;
+}
+
+ipcMain.handle('add-transcription-task', async (e, { task }) => {
+    getTaskProcessor(e.sender).addTask(task);
+    return { success: true };
+});
+
+ipcMain.handle('cancel-transcription-task', async (e, { taskId }) => {
+    getTaskProcessor(e.sender).cancelTask(taskId);
+    return { success: true };
+});
+
+ipcMain.handle('get-whisper-status', async (e, { engineId }) => {
+    return await getWhisperManager().getStatus(engineId);
+});
+
+ipcMain.handle('get-engine-status', async (e, { engineId }) => {
+    return await getWhisperManager().getEngineStatus(engineId);
+});
+
+ipcMain.handle('install-whisper-engine', async (e, { engineId }) => {
+    const onProgress = (progress) => {
+        if (!e.sender.isDestroyed()) {
+            e.sender.send('engine-install-progress', { engineId, progress });
+        }
+    };
+    try {
+        const result = await getWhisperManager().installEngine(engineId, onProgress);
+        return { success: true, ...result };
+    } catch (error) {
+        if (!e.sender.isDestroyed()) {
+            e.sender.send('engine-install-progress', { engineId, progress: -1, error: error.message });
+        }
+        return { success: false, error: error.message };
+    }
+});
+
+    ipcMain.handle('check-file-exists', async (e, filePath) => {
+        return fs.existsSync(filePath);
+    });
+
+ipcMain.handle('download-whisper-resource', async (e, { type, engineId, modelId }) => {
+    const onProgress = (progress) => {
+        if (!e.sender.isDestroyed()) {
+            e.sender.send('download-progress', { type, engineId, modelId, progress });
+        }
+    };
+    const onDownloadedBytes = (bytes) => {
+        if (!e.sender.isDestroyed()) {
+            e.sender.send('download-progress', { type, engineId, modelId, downloadedBytes: bytes });
+        }
+    };
+    try {
+        if (type === 'model') {
+            const path = await getWhisperManager().downloadModel(engineId, modelId, onProgress, onDownloadedBytes);
+            return { success: true, path };
+        } else if (type === 'engine') {
+            const path = await getWhisperManager().downloadEngine(engineId, onProgress);
+            return { success: true, path };
+        }
+        return { success: false, error: 'Unknown type' };
+    } catch (error) {
+        // 오류 발생 시 progress -1로 전송하여 UI에서 다운로드 상태 해제
+        if (!e.sender.isDestroyed()) {
+            e.sender.send('download-progress', { type, engineId, modelId, progress: -1, error: error.message });
+        }
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('cancel-whisper-download', async (e, { type, engineId, modelId }) => {
+    try {
+        if (type === 'model') {
+            const cancelled = getWhisperManager().cancelDownload(engineId, modelId);
+            return { success: cancelled };
+        }
+        return { success: false, error: 'Not implemented' };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('delete-whisper-resource', async (e, { type, engineId, modelId }) => {
+    try {
+        if (type === 'model') {
+            await getWhisperManager().deleteModel(engineId, modelId);
+            return { success: true };
+        }
+        return { success: false, error: 'Not implemented' };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+

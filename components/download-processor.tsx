@@ -33,7 +33,9 @@ export function DownloadProcessor() {
                         totalSize: status.totalSize,
                         eta: "-",
                         speed: "-",
-                        folderPath: status.folderPath
+                        folderPath: status.folderPath,
+                        savePath: status.savePath,
+                        fileName: status.fileName
                     });
                     toast.success(`다운로드 완료`);
                     processingRef.current.delete(itemId);
@@ -59,7 +61,9 @@ export function DownloadProcessor() {
                         downloadedSize: status.downloadedSize,
                         totalSize: status.totalSize,
                         speed: status.speed,
-                        eta: status.eta
+                        eta: status.eta,
+                        savePath: status.savePath,
+                        fileName: status.fileName
                     });
                 }
             } else {

@@ -17,12 +17,32 @@
             "from": "bin",
             "to": "bin",
             "filter": [
-                "**/*"
+                "**/*",
+                "!**/python/Lib/test/**",
+                "!**/python/Lib/idlelib/**",
+                "!**/python/Lib/tkinter/**",
+                "!**/python/Lib/turtledemo/**",
+                "!**/python/Lib/**/__pycache__/**",
+                "!**/python/Lib/**/*.pyc",
+                "!**/python/Lib/**/*.pyo",
+                "!**/python/Lib/site-packages/torch/**",
+                "!**/python/Lib/site-packages/tensorflow/**",
+                "!**/python/Lib/site-packages/scipy/**",
+                "!**/python/Lib/site-packages/pandas/**",
+                "!**/python/Lib/site-packages/matplotlib/**",
+                "!**/python/Lib/site-packages/jupyter/**",
+                "!**/python/Lib/site-packages/notebook/**",
+                "!**/python/Lib/site-packages/IPython/**",
+                "!**/python/Lib/site-packages/*/tests/**",
+                "!**/python/Lib/site-packages/*/test/**",
+                "!**/python/Lib/site-packages/**/tests/**",
+                "!**/python/Lib/site-packages/**/test/**"
             ]
         }
     ],
     "asarUnpack": [
-        "**/node_modules/@ffmpeg-installer/**/*"
+        "**/node_modules/@ffmpeg-installer/**/*",
+        "**/lib/transcribe_wrapper.py"
     ],
     "win": {
         "target": [

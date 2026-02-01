@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { StreamLog, TranscriptionTask, AnalysisTask, TaskLog } from "@/types/analysis";
 
 export interface SocialLink {
   type: string;
@@ -101,6 +102,10 @@ interface AppState {
   chatSettings: ChatSettings;
   appSettings: AppSettings;
   lastActiveStreamerId: string | null;
+  // Analysis
+  streamLogs: StreamLog[];
+  transcriptionTasks: TranscriptionTask[];
+  analysisTasks: AnalysisTask[];
 
   addFavoriteStreamer: (streamer: Streamer) => void;
   removeFavoriteStreamer: (id: string) => void;
@@ -116,6 +121,23 @@ interface AppState {
   setAppSettings: (settings: Partial<AppSettings>) => void;
   resetSettings: () => void;
   setLastActiveStreamerId: (id: string | null) => void;
+
+  // Analysis Actions
+  setStreamLogs: (logs: StreamLog[]) => void;
+  addStreamLog: (log: StreamLog) => void;
+  updateStreamLog: (id: string, updates: Partial<StreamLog>) => void;
+  removeStreamLog: (id: string) => void;
+
+  setTranscriptionTasks: (tasks: TranscriptionTask[]) => void;
+  addTranscriptionTask: (task: TranscriptionTask) => void;
+  updateTranscriptionTask: (id: string, updates: Partial<TranscriptionTask>) => void;
+  removeTranscriptionTask: (id: string) => void;
+  addTranscriptionTaskLog: (taskId: string, log: TaskLog) => void;
+
+  setAnalysisTasks: (tasks: AnalysisTask[]) => void;
+  addAnalysisTask: (task: AnalysisTask) => void;
+  updateAnalysisTask: (id: string, updates: Partial<AnalysisTask>) => void;
+  removeAnalysisTask: (id: string) => void;
 
   naverCookies: { nidAut: string; nidSes: string } | null;
   setNaverCookies: (cookies: { nidAut: string; nidSes: string } | null) => void;
@@ -164,6 +186,9 @@ export const useAppStore = create<AppState>()(
       chatSettings: defaultChatSettings,
       appSettings: defaultAppSettings,
       lastActiveStreamerId: null,
+      streamLogs: [],
+      transcriptionTasks: [],
+      analysisTasks: [],
 
       addFavoriteStreamer: (streamer) =>
         set((state) => ({
@@ -237,6 +262,60 @@ export const useAppStore = create<AppState>()(
         }),
 
       setLastActiveStreamerId: (id) => set({ lastActiveStreamerId: id }),
+
+      // Analysis implementation
+      setStreamLogs: (logs) => set({ streamLogs: logs }),
+      addStreamLog: (log) => set((state) => ({ streamLogs: [...state.streamLogs, log] })),
+      updateStreamLog: (id, updates) =>
+        set((state) => ({
+          streamLogs: state.streamLogs.map((log) =>
+            log.id === id ? { ...log, ...updates } : log
+          ),
+        })),
+      removeStreamLog: (id) =>
+        set((state) => ({
+          streamLogs: state.streamLogs.filter((log) => log.id !== id),
+        })),
+
+      setTranscriptionTasks: (tasks) => set({ transcriptionTasks: tasks }),
+      addTranscriptionTask: (task) =>
+        set((state) => ({
+          transcriptionTasks: [...state.transcriptionTasks, task],
+        })),
+      updateTranscriptionTask: (id, updates) =>
+        set((state) => ({
+          transcriptionTasks: state.transcriptionTasks.map((task) =>
+            task.id === id ? { ...task, ...updates } : task
+          ),
+        })),
+      removeTranscriptionTask: (id) =>
+        set((state) => ({
+          transcriptionTasks: state.transcriptionTasks.filter((task) => task.id !== id),
+        })),
+      addTranscriptionTaskLog: (taskId, log) =>
+        set((state) => ({
+          transcriptionTasks: state.transcriptionTasks.map((task) =>
+            task.id === taskId
+              ? { ...task, logs: [...(task.logs || []), log] }
+              : task
+          ),
+        })),
+
+      setAnalysisTasks: (tasks) => set({ analysisTasks: tasks }),
+      addAnalysisTask: (task) =>
+        set((state) => ({
+          analysisTasks: [...state.analysisTasks, task],
+        })),
+      updateAnalysisTask: (id, updates) =>
+        set((state) => ({
+          analysisTasks: state.analysisTasks.map((task) =>
+            task.id === id ? { ...task, ...updates } : task
+          ),
+        })),
+      removeAnalysisTask: (id) =>
+        set((state) => ({
+          analysisTasks: state.analysisTasks.filter((task) => task.id !== id),
+        })),
 
       naverCookies: null,
       setNaverCookies: (cookies) => set({ naverCookies: cookies }),

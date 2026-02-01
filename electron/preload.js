@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('electron', {
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
     openPath: (path) => ipcRenderer.invoke('open-path', path),
     selectDirectory: (defaultPath) => ipcRenderer.invoke('select-directory', defaultPath),
+    selectFile: (filters) => ipcRenderer.invoke('select-file', filters),
+    readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
     getDiskUsage: (folderPath) => ipcRenderer.invoke('get-disk-usage', folderPath),
 
     // Secure Cookie Storage
@@ -37,6 +39,38 @@ contextBridge.exposeInMainWorld('electron', {
         return () => ipcRenderer.removeAllListeners('update-progress');
     },
 
+    // Whisper
+    getWhisperStatus: (engineId) => ipcRenderer.invoke('get-whisper-status', { engineId }),
+    getEngineStatus: (engineId) => ipcRenderer.invoke('get-engine-status', { engineId }),
+    installWhisperEngine: (engineId) => ipcRenderer.invoke('install-whisper-engine', { engineId }),
+    onEngineInstallProgress: (callback) => {
+        const handler = (_, data) => callback(data);
+        ipcRenderer.on('engine-install-progress', handler);
+        return () => ipcRenderer.removeListener('engine-install-progress', handler);
+    },
+    downloadWhisperResource: (type, engineId, modelId) => ipcRenderer.invoke('download-whisper-resource', { type, engineId, modelId }),
+    cancelWhisperDownload: (type, engineId, modelId) => ipcRenderer.invoke('cancel-whisper-download', { type, engineId, modelId }),
+    deleteWhisperResource: (type, engineId, modelId) => ipcRenderer.invoke('delete-whisper-resource', { type, engineId, modelId }),
+    onDownloadProgress: (callback) => {
+        const handler = (_, data) => callback(data);
+        ipcRenderer.on('download-progress', handler);
+        return () => ipcRenderer.removeListener('download-progress', handler);
+    },
+
+    // Task & Analysis
+    addTranscriptionTask: (task) => ipcRenderer.invoke('add-transcription-task', { task }),
+    cancelTranscriptionTask: (taskId) => ipcRenderer.invoke('cancel-transcription-task', { taskId }),
+    onTaskUpdate: (callback) => {
+        const handler = (_, data) => callback(data);
+        ipcRenderer.on('task-update', handler);
+        return () => ipcRenderer.removeListener('task-update', handler);
+    },
+    onTaskLog: (callback) => {
+        const handler = (_, data) => callback(data);
+        ipcRenderer.on('task-log', handler);
+        return () => ipcRenderer.removeListener('task-log', handler);
+    },
+
     // Migrated Actions
     searchChannels: (keyword) => ipcRenderer.invoke('search-channels', keyword),
     getChannelVideos: (channelId, page, size, sortType, cookies, videoType) =>
@@ -51,6 +85,7 @@ contextBridge.exposeInMainWorld('electron', {
     deleteVideoFiles: (jobId) => ipcRenderer.invoke('delete-video-files', jobId),
     checkDownloadedFiles: (vods, basePath) => ipcRenderer.invoke('check-downloaded-files', vods, basePath),
     checkFilesExistence: (paths) => ipcRenderer.invoke('check-files-existence', paths),
+    checkFileExists: (path) => ipcRenderer.invoke('check-file-exists', path),
     downloadChat: (vodId, streamerName, videoTitle, videoTimestamp, savePath, requestFileName) =>
         ipcRenderer.invoke('download-chat', vodId, streamerName, videoTitle, videoTimestamp, savePath, requestFileName),
     convertLocalJsonToAss: (folderPath, fileName, settings) =>

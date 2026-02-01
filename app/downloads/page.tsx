@@ -269,7 +269,7 @@ export default function DownloadsPage() {
       totalSize: "-",
       speed: "-",
       eta: "-",
-      savePath: videoItem.savePath,
+      savePath: videoItem.savePath || appSettings.downloadPath,
       streamerName: videoItem.streamerName,
       timestamp: videoItem.timestamp,
       thumbnailUrl: videoItem.thumbnailUrl,
