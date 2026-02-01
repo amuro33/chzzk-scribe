@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "start": "next start",
     "predist": "node scripts/setup-python-env.js && node scripts/cleanup-python-libs.js",
-    "dist": "npm run build && electron-builder --config electron-builder.json --publish never"
+    "dist": "npm run build && electron-builder --config electron-builder.json --publish never && node scripts/create-portable-zip.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
