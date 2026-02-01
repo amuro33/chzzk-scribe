@@ -53,14 +53,16 @@
                 ]
             },
             {
-                "target": "zip",
+                "target": "portable",
                 "arch": [
                     "x64"
                 ]
             }
         ],
         "icon": "public/icon.png",
-        "requestedExecutionLevel": "asInvoker",
+        "requestedExecutionLevel": "asInvoker"
+    },
+    "portable": {
         "artifactName": "${productName} ${version} Portable.${ext}"
     },
     "nsis": {
