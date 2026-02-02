@@ -80,5 +80,5 @@
 
 ---
 
-**Last Updated:** 2026-01-27
-**Status:** Active Development (v1.0.19)
+**Last Updated:** 2026-02-02
+**Status:** Active Development (v1.1.0)

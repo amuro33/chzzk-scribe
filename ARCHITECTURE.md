@@ -49,3 +49,23 @@ VOD 다운로드와 같은 무거운 연산이나 로컬 파일 쓰기 작업은
 어플리케이션 성능의 핵심을 담당하는 외부 도구들은 Node.js의 `spawn` 기능을 통해 제어됩니다.
 - **Streamlink**: 실시간/VOD 스트림 세그먼트 다운로드
 - **FFmpeg**: 동영상 remuxing 및 자막 병합 지원
+- **Python (Embeddable)**: Faster-Whisper 음성 인식 엔진 구동
+  - 버전: Python 3.10.11 (embed-amd64)
+  - 위치: `bin/faster-whisper-env/python/`
+  - 패키지: pip, setuptools, wheel, faster-whisper
+
+## 🤖 AI 분석 시스템
+
+### Whisper 음성 인식
+- **엔진**: Faster-Whisper (CTranslate2 기반)
+- **모델**: Tiny, Base, Small, Medium, Large 지원
+- **처리 방식**: 
+  - Python 래퍼 스크립트(`lib/transcribe_wrapper.py`)를 통한 실행
+  - 작업 큐 시스템으로 백그라운드 처리
+  - 진행률 실시간 모니터링
+
+### 스트림 로그 생성
+- **음성 로그**: Whisper로 생성된 SRT 파일
+- **채팅 로그**: 치지직 API에서 다운로드한 채팅 데이터
+- **병합**: 타임스탬프 기준으로 음성과 채팅을 하나의 스트림 로그로 결합
+- **출력**: `{다운로드폴더}/{스트리머이름}/ai/{파일명}_streamlog.md`

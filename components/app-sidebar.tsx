@@ -4,7 +4,7 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-
+  Brain,
   Search,
   History,
   Settings,
@@ -86,6 +86,33 @@ const mainNavItems: NavItem[] = [
     ),
     label: "Chat",
   },
+  {
+    href: "/analysis",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-5 w-5"
+      >
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <path d="M21 12v3a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10a1 1 0 0 1 1 -1h9" />
+        <path d="M7 20l10 0" />
+        <path d="M9 16l0 4" />
+        <path d="M15 16l0 4" />
+        <path d="M17 4h4v4" />
+        <path d="M16 9l5 -5" />
+      </svg>
+    ),
+    label: "방송 분석",
+    badge: 0,
+  },
 
 ];
 
@@ -93,7 +120,7 @@ const mainNavItems: NavItem[] = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { lastActiveStreamerId, downloads } = useAppStore();
+  const { lastActiveStreamerId, downloads, transcriptionTasks, analysisTasks } = useAppStore();
 
   const activeVideoCount = downloads.filter(
     (d) => d.type === "video" && (d.status === "downloading" || d.status === "queued" || d.status === "converting")
@@ -103,8 +130,12 @@ export function AppSidebar() {
     (d) => d.type === "chat" && (d.status === "downloading" || d.status === "queued" || d.status === "converting")
   ).length;
 
+  const activeAnalysisCount = [
+    ...transcriptionTasks,
+    ...analysisTasks
+  ].filter(t => t.status === "processing" || t.status === "queued").length;
+
   const settingsItem: NavItem = { href: "/settings", icon: <Settings className="h-5 w-5" />, label: "Settings" };
-  const navItems = mainNavItems.filter(item => item.label !== "Settings");
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -137,7 +168,7 @@ export function AppSidebar() {
         </div>
 
         <nav className="flex flex-1 flex-col items-center gap-2 py-4">
-          {navItems.map((item) => {
+          {mainNavItems.map((item) => {
             let href = item.href;
             if (item.label === "Search" && lastActiveStreamerId && lastActiveStreamerId !== "all") {
               href = `/search?streamer=${lastActiveStreamerId}`;
@@ -148,6 +179,7 @@ export function AppSidebar() {
             let badgeCount = 0;
             if (item.label === "Downloads") badgeCount = activeVideoCount;
             if (item.label === "Chat") badgeCount = activeChatCount;
+            if (item.label === "방송분석") badgeCount = activeAnalysisCount;
 
             return (
               <Tooltip key={item.href}>

@@ -22,7 +22,8 @@
         }
     ],
     "asarUnpack": [
-        "**/node_modules/@ffmpeg-installer/**/*"
+        "**/node_modules/@ffmpeg-installer/**/*",
+        "**/lib/transcribe_wrapper.py"
     ],
     "win": {
         "target": [
@@ -33,15 +34,14 @@
                 ]
             },
             {
-                "target": "zip",
+                "target": "dir",
                 "arch": [
                     "x64"
                 ]
             }
         ],
         "icon": "public/icon.png",
-        "requestedExecutionLevel": "asInvoker",
-        "artifactName": "${productName} ${version} Portable.${ext}"
+        "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
         "oneClick": false,

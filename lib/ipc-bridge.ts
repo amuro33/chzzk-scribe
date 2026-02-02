@@ -56,6 +56,59 @@ export const ipcBridge = {
     downloadChat: async (vodId: string, streamerName: string, videoTitle: string, videoTimestamp: number, savePath: string, requestFileName?: string) => {
         if (!isElectron) return { success: false, error: 'Not in Electron environment' };
         return window.electron.downloadChat(vodId, streamerName, videoTitle, videoTimestamp, savePath, requestFileName);
+    },    // Whisper
+    getWhisperStatus: async (engineId: string) => {
+        if (!isElectron) return null;
+        return window.electron.getWhisperStatus(engineId);
+    },
+    getEngineStatus: async (engineId: string) => {
+        if (!isElectron) return null;
+        return window.electron.getEngineStatus(engineId);
+    },
+    installWhisperEngine: async (engineId: string) => {
+        if (!isElectron) return { success: false, error: 'Not electron' };
+        return window.electron.installWhisperEngine(engineId);
+    },
+    onEngineInstallProgress: (callback: (data: any) => void) => {
+        if (isElectron) return window.electron.onEngineInstallProgress(callback);
+        return () => {};
+    },
+    checkFileExists: async (filePath: string) => {
+        if (!isElectron) return false;
+        return window.electron.checkFileExists(filePath);
+    },
+    downloadWhisperResource: async (type: 'model' | 'engine', engineId: string, modelId?: string) => {
+        if (!isElectron) return { success: false, error: 'Not electron' };
+        return window.electron.downloadWhisperResource(type, engineId, modelId);
+    },
+    cancelWhisperDownload: async (type: 'model' | 'engine', engineId: string, modelId?: string) => {
+        if (!isElectron) return { success: false, error: 'Not electron' };
+        return window.electron.cancelWhisperDownload(type, engineId, modelId);
+    },
+    deleteWhisperResource: async (type: 'model' | 'engine', engineId: string, modelId?: string) => {
+        if (!isElectron) return { success: false, error: 'Not electron' };
+        return window.electron.deleteWhisperResource(type, engineId, modelId);
+    },
+    onDownloadProgress: (callback: (data: any) => void) => {
+        if (isElectron) return window.electron.onDownloadProgress(callback);
+        return () => {};
+    },
+    // Task
+    addTranscriptionTask: async (task: any) => {
+        if (!isElectron) return { success: false, error: 'Not electron' };
+        return window.electron.addTranscriptionTask(task);
+    },
+    cancelTranscriptionTask: async (taskId: string) => {
+        if (!isElectron) return { success: false, error: 'Not electron' };
+        return window.electron.cancelTranscriptionTask(taskId);
+    },
+    onTaskUpdate: (callback: (data: any) => void) => {
+        if (isElectron) return window.electron.onTaskUpdate(callback);
+        return () => {};
+    },
+    onTaskLog: (callback: (data: any) => void) => {
+        if (isElectron) return window.electron.onTaskLog(callback);
+        return () => {};
     },
     convertLocalJsonToAss: async (folderPath: string, fileName: string, settings: any) => {
         if (!isElectron) return { success: false, error: 'Not in Electron environment' };
@@ -72,6 +125,10 @@ export const ipcBridge = {
     selectDirectory: async (defaultPath?: string) => {
         if (!isElectron) return null;
         return window.electron.selectDirectory(defaultPath);
+    },
+    selectFile: async (filters?: any[]) => {
+        if (!isElectron) return null;
+        return window.electron.selectFile(filters);
     },
     getDiskUsage: async (folderPath: string) => {
         if (!isElectron) return null;

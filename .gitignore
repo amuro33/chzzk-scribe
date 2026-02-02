@@ -31,4 +31,5 @@ debug_actions.log
 
 # binaries
 /bin/streamlink/ffmpeg/ffmpeg.exe
+/bin/faster-whisper-env/python/
 /dist_electron/

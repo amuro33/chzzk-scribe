@@ -22,18 +22,80 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
+      - name: Download Python Embeddable
+        shell: pwsh
+        run: |
+          $pythonUrl = "https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip"
+          $pythonZip = "python-embed.zip"
+          $pythonDir = "bin/faster-whisper-env/python"
+          
+          Write-Host "Downloading Python embeddable..."
+          Invoke-WebRequest -Uri $pythonUrl -OutFile $pythonZip
+          
+          Write-Host "Extracting Python..."
+          New-Item -ItemType Directory -Force -Path $pythonDir | Out-Null
+          Expand-Archive -Path $pythonZip -DestinationPath $pythonDir -Force
+          Remove-Item $pythonZip
+          
+          Write-Host "Configuring Python paths..."
+          $pthFile = Get-ChildItem -Path $pythonDir -Filter "*._pth" | Select-Object -First 1
+          if ($pthFile) {
+            $content = Get-Content $pthFile.FullName
+            $content = $content -replace '#import site', 'import site'
+            $content | Set-Content $pthFile.FullName
+          }
+          
+          Write-Host "Installing pip..."
+          Copy-Item "bin/faster-whisper-env/get-pip.py" -Destination $pythonDir -Force
+          & "$pythonDir/python.exe" "$pythonDir/get-pip.py"
+          
+          Write-Host "Installing PyTorch (CUDA version)..."
+          & "$pythonDir/python.exe" -m pip install torch --index-url https://download.pytorch.org/whl/cu121
+          
+          Write-Host "Installing faster-whisper..."
+          & "$pythonDir/python.exe" -m pip install faster-whisper
+          
+          Write-Host "Python setup complete"
+
+      - name: Cleanup Python Libraries
+        run: node scripts/cleanup-python-libs.js
+
       - name: Build Next.js
         run: npm run build
 
-      - name: Build & Publish Electron
-        run: npx electron-builder --config electron-builder.json --publish always
+      - name: Build Electron (without publish)
+        run: npx electron-builder --config electron-builder.json --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify Python in win-unpacked
+        shell: pwsh
+        run: |
+          $pythonPath = "dist_electron\win-unpacked\resources\bin\faster-whisper-env\python\python.exe"
+          if (Test-Path $pythonPath) {
+            Write-Host "✓ Python found in win-unpacked"
+            Get-ChildItem "dist_electron\win-unpacked\resources\bin\faster-whisper-env\python" | Select-Object Name, Length
+          } else {
+            Write-Host "✗ Python NOT found in win-unpacked!"
+            Write-Host "Listing resources/bin contents:"
+            Get-ChildItem "dist_electron\win-unpacked\resources\bin" -Recurse -Depth 2
+            exit 1
+          }
+
+      - name: Create Portable ZIP
+        run: node scripts/create-portable-zip.js
+
+      - name: Get version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
           files: |
             dist_electron/*.exe
             dist_electron/*.zip
