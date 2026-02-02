@@ -65,10 +65,17 @@ jobs:
       - name: Create Portable ZIP
         run: node scripts/create-portable-zip.js
 
+      - name: Get version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
           files: |
             dist_electron/*.exe
             dist_electron/*.zip
