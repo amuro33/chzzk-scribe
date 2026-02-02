@@ -194,6 +194,7 @@ def main():
                 min_silence_duration_ms=500,  # 0.5초 이상 무음만 제거
                 threshold=0.5  # VAD 민감도
             ),
+            word_timestamps=True,  # 단어 단위 타임스탬프로 정확한 시작/종료 시점 감지
             initial_prompt=initial_prompt,  # 한국어 인식률 향상 (콜드 스타트 방지)
             condition_on_previous_text=True  # 문맥 유지
         )
@@ -216,8 +217,14 @@ def main():
         
         with open(srt_path, "w", encoding="utf-8") as srt_file:
             for i, segment in enumerate(segments, start=1):
-                start_time = format_timestamp(segment.start)
-                end_time = format_timestamp(segment.end)
+                # word_timestamps를 활용해 실제 첫/마지막 단어 시점 사용
+                if hasattr(segment, 'words') and segment.words and len(segment.words) > 0:
+                    start_time = format_timestamp(segment.words[0].start)
+                    end_time = format_timestamp(segment.words[-1].end)
+                else:
+                    start_time = format_timestamp(segment.start)
+                    end_time = format_timestamp(segment.end)
+                
                 text = segment.text.strip()
                 
                 srt_file.write(f"{i}\n{start_time} --> {end_time}\n{text}\n\n")
