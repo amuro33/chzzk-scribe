@@ -111,3 +111,22 @@ removePycache(libPath);
 console.log('✓ Removed all __pycache__ directories');
 
 console.log('\n✨ Cleanup complete!');
+
+// Python 환경 검증
+const pythonExePath = path.join(__dirname, '..', 'bin', 'faster-whisper-env', 'python', 'python.exe');
+const fasterWhisperPath = path.join(sitePackagesPath, 'faster_whisper');
+
+console.log('\n🔍 Verifying Python environment:');
+if (fs.existsSync(pythonExePath)) {
+  console.log('✓ python.exe found');
+} else {
+  console.error('✗ python.exe NOT found - 빌드 실패 가능!');
+  process.exit(1);
+}
+
+if (fs.existsSync(fasterWhisperPath)) {
+  console.log('✓ faster-whisper package found');
+} else {
+  console.error('✗ faster-whisper NOT found - 빌드 실패 가능!');
+  process.exit(1);
+}

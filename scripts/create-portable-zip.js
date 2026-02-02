@@ -13,6 +13,15 @@ if (!fs.existsSync(source)) {
     process.exit(1);
 }
 
+// Python 폴더 존재 확인
+const pythonPath = path.join(source, 'resources', 'bin', 'faster-whisper-env', 'python');
+if (!fs.existsSync(pythonPath)) {
+    console.error('❌ 경고: Python 폴더가 없습니다:', pythonPath);
+    console.error('   포터블 버전에서 Whisper 기능이 작동하지 않을 수 있습니다.');
+} else {
+    console.log('✓ Python 폴더 확인됨');
+}
+
 console.log(`📦 포터블 ZIP 생성 중... (${version})`);
 
 const outputStream = fs.createWriteStream(output);

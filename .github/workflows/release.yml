@@ -68,6 +68,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify Python in win-unpacked
+        shell: pwsh
+        run: |
+          $pythonPath = "dist_electron\win-unpacked\resources\bin\faster-whisper-env\python\python.exe"
+          if (Test-Path $pythonPath) {
+            Write-Host "✓ Python found in win-unpacked"
+            Get-ChildItem "dist_electron\win-unpacked\resources\bin\faster-whisper-env\python" | Select-Object Name, Length
+          } else {
+            Write-Host "✗ Python NOT found in win-unpacked!"
+            Write-Host "Listing resources/bin contents:"
+            Get-ChildItem "dist_electron\win-unpacked\resources\bin" -Recurse -Depth 2
+            exit 1
+          }
+
       - name: Create Portable ZIP
         run: node scripts/create-portable-zip.js
 
