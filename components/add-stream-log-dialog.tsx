@@ -196,8 +196,17 @@ export function AddStreamLogDialog({
                  delete next[key!];
                  return next;
              });
-             // 상태 업데이트 완료 후 모델 상태 새로고침
-             setTimeout(() => refreshStatus(engineId), 100);
+             // 파일 시스템 동기화를 위해 여러 번 체크 (1초마다 최대 10초)
+             let checkCount = 0;
+             const checkInterval = setInterval(async () => {
+                 checkCount++;
+                 await refreshStatus(engineId);
+                 
+                 // 10초 후 중지
+                 if (checkCount >= 10) {
+                     clearInterval(checkInterval);
+                 }
+             }, 1000);
         } else {
              setDownloading(prev => ({ ...prev, [key!]: progress }));
         }
