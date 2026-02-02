@@ -174,6 +174,20 @@ export function AddStreamLogDialog({
                 delete next[key!];
                 return next;
             });
+            
+            // 에러 메시지 표시
+            if (error) {
+                console.error(`${type} 다운로드 실패:`, error);
+                const errorLines = error.split('\\n');
+                const shortMsg = errorLines[0];
+                
+                if (errorLines.length > 1) {
+                    alert(`${type === 'model' ? '모델' : '엔진'} 다운로드 실패: ${shortMsg}\\n\\n자세한 내용은 개발자 도구 콘솔(F12)을 확인하세요.`);
+                } else {
+                    alert(`${type === 'model' ? '모델' : '엔진'} 다운로드 실패: ${error}`);
+                }
+            }
+            
             setTimeout(() => refreshStatus(engineId), 100);
         } else if (progress >= 1) {
              // 다운로드 완료 - 상태 제거 후 모델 목록 새로고침
@@ -197,7 +211,20 @@ export function AddStreamLogDialog({
             // 설치 실패
             setInstallingEngine(false);
             setEngineInstallProgress(0);
-            alert(`엔진 설치 실패: ${error || '알 수 없는 오류'}`);
+            // 상세한 에러 메시지 표시
+            const errorMsg = error || '알 수 없는 오류';
+            const errorLines = errorMsg.split('\\n');
+            const shortMsg = errorLines[0];
+            
+            // alert 대신 console에 전체 에러 출력
+            console.error('엔진 설치 실패:', errorMsg);
+            
+            // 사용자에게는 간단한 메시지와 함께 콘솔 확인 안내
+            if (errorLines.length > 1) {
+                alert(`엔진 설치 실패: ${shortMsg}\\n\\n자세한 내용은 개발자 도구 콘솔(F12)을 확인하세요.`);
+            } else {
+                alert(`엔진 설치 실패: ${errorMsg}`);
+            }
         } else if (progress >= 1) {
             // 설치 완료
             setInstallingEngine(false);
