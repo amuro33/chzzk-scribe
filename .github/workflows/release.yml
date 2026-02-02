@@ -57,21 +57,18 @@ jobs:
       - name: Build Next.js
         run: npm run build
 
-      - name: Build & Publish Electron
-        run: npx electron-builder --config electron-builder.json --publish always
+      - name: Build Electron
+        run: npx electron-builder --config electron-builder.json --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Portable ZIP
-        shell: pwsh
-        run: |
-          $version = "1.1.0"
-          $source = "dist_electron/win-unpacked"
-          $zipName = "chzzk-scribe $version Portable.zip"
-          
-          Write-Host "Creating portable ZIP from $source..."
-          Compress-Archive -Path "$source/*" -DestinationPath "dist_electron/$zipName" -Force
-          Write-Host "Created $zipName"
+        run: node scripts/create-portable-zip.js
+
+      - name: Publish to GitHub Release
+        run: npx electron-builder --config electron-builder.json --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
