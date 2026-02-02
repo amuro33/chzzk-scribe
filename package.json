@@ -83,6 +83,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "archiver": "^7.0.1",
     "concurrently": "^9.2.1",
     "electron": "^33.2.1",
     "electron-builder": "^26.4.0",
