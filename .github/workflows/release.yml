@@ -49,6 +49,12 @@ jobs:
           Copy-Item "bin/faster-whisper-env/get-pip.py" -Destination $pythonDir -Force
           & "$pythonDir/python.exe" "$pythonDir/get-pip.py"
           
+          Write-Host "Installing PyTorch (CUDA version)..."
+          & "$pythonDir/python.exe" -m pip install torch --index-url https://download.pytorch.org/whl/cu121
+          
+          Write-Host "Installing faster-whisper..."
+          & "$pythonDir/python.exe" -m pip install faster-whisper
+          
           Write-Host "Python setup complete"
 
       - name: Cleanup Python Libraries

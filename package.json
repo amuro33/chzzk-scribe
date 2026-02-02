@@ -12,6 +12,7 @@
     "dev:electron": "wait-on http://localhost:3000 && electron .",
     "lint": "eslint .",
     "start": "next start",
+    "predev": "node scripts/setup-python-env.js",
     "predist": "node scripts/setup-python-env.js && node scripts/cleanup-python-libs.js",
     "dist": "npm run build && electron-builder --config electron-builder.json --publish never && node scripts/create-portable-zip.js"
   },
