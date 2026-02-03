@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { Trash2, Ghost } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
-import { DownloadItem } from "@/components/download-item";
 import { ipcBridge } from "@/lib/ipc-bridge";
 import path from "path";
-import { ChatDownloadModal } from "@/components/chat-download-modal";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+// Lazy load heavy components
+const DownloadItem = dynamic(() => import("@/components/download-item").then(mod => ({ default: mod.DownloadItem })), {
+  loading: () => <div className="animate-pulse bg-muted rounded-lg h-[100px]"></div>,
+  ssr: false
+});
+const ChatDownloadModal = dynamic(() => import("@/components/chat-download-modal").then(mod => ({ default: mod.ChatDownloadModal })), {
+  ssr: false
+});
 
 
 export default function DownloadsPage() {

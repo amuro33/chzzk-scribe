@@ -6,12 +6,20 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useMemo, memo } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Search, UserPlus, Check, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
-import { VODCard } from "@/components/vod-card";
-import { ChatDownloadModal } from "@/components/chat-download-modal";
+
+// Lazy load heavy components
+const VODCard = dynamic(() => import("@/components/vod-card").then(mod => ({ default: mod.VODCard })), {
+  loading: () => <div className="animate-pulse bg-muted rounded-lg h-[280px]"></div>,
+  ssr: false
+});
+const ChatDownloadModal = dynamic(() => import("@/components/chat-download-modal").then(mod => ({ default: mod.ChatDownloadModal })), {
+  ssr: false
+});
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppStore, type VOD, type DownloadItem, type Streamer } from "@/lib/store";

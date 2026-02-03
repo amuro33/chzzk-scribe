@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
+import dynamic from "next/dynamic";
 import { AppSidebar } from "@/components/app-sidebar";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,21 +16,33 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { AddStreamLogDialog } from "@/components/add-stream-log-dialog";
-import { AnalysisSettingsDialog } from "@/components/analysis-settings-dialog";
-import { ChatFirepowerChart } from "@/components/chat-firepower-chart";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
-import { ipcBridge } from "@/lib/ipc-bridge"; // 추가
+import { ipcBridge } from "@/lib/ipc-bridge";
+
+// Heavy components - lazy load
+const AddStreamLogDialog = dynamic(() => import("@/components/add-stream-log-dialog").then(mod => ({ default: mod.AddStreamLogDialog })), {
+  loading: () => <div className="text-sm text-muted-foreground">로딩 중...</div>,
+  ssr: false
+});
+const AnalysisSettingsDialog = dynamic(() => import("@/components/analysis-settings-dialog").then(mod => ({ default: mod.AnalysisSettingsDialog })), {
+  ssr: false
+});
+const ChatFirepowerChart = dynamic(() => import("@/components/chat-firepower-chart").then(mod => ({ default: mod.ChatFirepowerChart })), {
+  loading: () => <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">차트 로딩 중...</div>,
+  ssr: false
+});
 
 export default function AnalysisPage() {
   const [activeTab, setActiveTab] = useState("stream-log");
   const { transcriptionTasks, analysisTasks, updateTranscriptionTask, addStreamLog, addTranscriptionTaskLog, downloads } = useAppStore();
 
-  const activeTaskCount = [
-    ...transcriptionTasks,
-    ...analysisTasks
-  ].filter(t => t.status === "processing" || t.status === "queued").length;
+  const activeTaskCount = useMemo(() => {
+    return [
+      ...transcriptionTasks,
+      ...analysisTasks
+    ].filter(t => t.status === "processing" || t.status === "queued").length;
+  }, [transcriptionTasks, analysisTasks]);
 
   useEffect(() => {
     // 작업 상태 업데이트 수신
