@@ -65,9 +65,9 @@ export const ipcBridge = {
         if (!isElectron) return null;
         return window.electron.getEngineStatus(engineId);
     },
-    installWhisperEngine: async (engineId: string) => {
+    installWhisperEngine: async (engineId: string, useGpu?: boolean) => {
         if (!isElectron) return { success: false, error: 'Not electron' };
-        return window.electron.installWhisperEngine(engineId);
+        return window.electron.installWhisperEngine(engineId, useGpu);
     },
     onEngineInstallProgress: (callback: (data: any) => void) => {
         if (isElectron) return window.electron.onEngineInstallProgress(callback);

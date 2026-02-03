@@ -42,7 +42,7 @@ contextBridge.exposeInMainWorld('electron', {
     // Whisper
     getWhisperStatus: (engineId) => ipcRenderer.invoke('get-whisper-status', { engineId }),
     getEngineStatus: (engineId) => ipcRenderer.invoke('get-engine-status', { engineId }),
-    installWhisperEngine: (engineId) => ipcRenderer.invoke('install-whisper-engine', { engineId }),
+    installWhisperEngine: (engineId, useGpu) => ipcRenderer.invoke('install-whisper-engine', { engineId, useGpu }),
     onEngineInstallProgress: (callback) => {
         const handler = (_, data) => callback(data);
         ipcRenderer.on('engine-install-progress', handler);

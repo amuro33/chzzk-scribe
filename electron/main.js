@@ -544,14 +544,14 @@ ipcMain.handle('get-engine-status', async (e, { engineId }) => {
     return await getWhisperManager().getEngineStatus(engineId);
 });
 
-ipcMain.handle('install-whisper-engine', async (e, { engineId }) => {
-    const onProgress = (progress) => {
+ipcMain.handle('install-whisper-engine', async (e, { engineId, useGpu }) => {
+    const onProgress = (progress, message) => {
         if (!e.sender.isDestroyed()) {
-            e.sender.send('engine-install-progress', { engineId, progress });
+            e.sender.send('engine-install-progress', { engineId, progress, message });
         }
     };
     try {
-        const result = await getWhisperManager().installEngine(engineId, onProgress);
+        const result = await getWhisperManager().installEngine(engineId, onProgress, useGpu);
         return { success: true, ...result };
     } catch (error) {
         if (!e.sender.isDestroyed()) {
@@ -611,8 +611,11 @@ ipcMain.handle('delete-whisper-resource', async (e, { type, engineId, modelId })
         if (type === 'model') {
             await getWhisperManager().deleteModel(engineId, modelId);
             return { success: true };
+        } else if (type === 'engine') {
+            await getWhisperManager().deleteEngine(engineId);
+            return { success: true };
         }
-        return { success: false, error: 'Not implemented' };
+        return { success: false, error: 'Unknown type' };
     } catch (error) {
         return { success: false, error: error.message };
     }

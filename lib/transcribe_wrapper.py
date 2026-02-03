@@ -53,6 +53,14 @@ def detect_gpu():
     sys.stderr.write("🔍 GPU 감지 디버깅 시작\n")
     sys.stderr.write("=" * 60 + "\n")
     sys.stderr.write(f"PyTorch 버전: {torch.__version__}\n")
+    
+    # CPU 버전인지 먼저 체크
+    is_cpu_only = '+cpu' in torch.__version__
+    if is_cpu_only:
+        sys.stderr.write("⚠️ ⚠️ ⚠️ PyTorch CPU 버전이 설치되어 있습니다! ⚠️ ⚠️ ⚠️\n")
+        sys.stderr.write("GPU를 사용하려면 GPU 버전으로 재설치해야 합니다.\n")
+        sys.stderr.write("설정 화면에서 엔진을 삭제 후 GPU 버전으로 다시 설치하세요.\n")
+    
     sys.stderr.write(f"CUDA 빌드 포함 여부: {torch.cuda.is_available()}\n")
     
     try:
@@ -60,8 +68,6 @@ def detect_gpu():
             sys.stderr.write(f"PyTorch CUDA 버전: {torch.version.cuda}\n")
         else:
             sys.stderr.write("⚠️ PyTorch가 CPU 전용 버전으로 설치되었습니다!\n")
-            sys.stderr.write("해결방법: pip uninstall torch\n")
-            sys.stderr.write("         pip install torch --index-url https://download.pytorch.org/whl/cu121\n")
     except:
         pass
     
@@ -69,7 +75,7 @@ def detect_gpu():
         cuda_available = torch.cuda.is_available()
         sys.stderr.write(f"CUDA 사용 가능: {cuda_available}\n")
         
-        if cuda_available:
+        if cuda_available and not is_cpu_only:
             device_count = torch.cuda.device_count()
             sys.stderr.write(f"감지된 GPU 개수: {device_count}\n")
             
@@ -81,13 +87,16 @@ def detect_gpu():
             log_message(f"✓ NVIDIA GPU 감지: {torch.cuda.get_device_name(0)}", "INFO")
             return True, torch.cuda.get_device_name(0)
         else:
-            sys.stderr.write("⚠️ CUDA가 사용 불가능합니다.\n")
-            sys.stderr.write("가능한 원인:\n")
-            sys.stderr.write("  1. PyTorch가 CPU 버전으로 설치됨 (가장 흔함)\n")
-            sys.stderr.write("  2. NVIDIA 드라이버가 설치되지 않음\n")
-            sys.stderr.write("  3. CUDA Toolkit 미설치\n")
+            if is_cpu_only:
+                sys.stderr.write("❌ PyTorch CPU 버전이 설치되어 GPU를 사용할 수 없습니다.\n")
+            else:
+                sys.stderr.write("⚠️ CUDA가 사용 불가능합니다.\n")
+                sys.stderr.write("가능한 원인:\n")
+                sys.stderr.write("  1. PyTorch가 CPU 버전으로 설치됨 (가장 흔함)\n")
+                sys.stderr.write("  2. NVIDIA 드라이버가 설치되지 않음\n")
+                sys.stderr.write("  3. CUDA Toolkit 미설치\n")
             sys.stderr.write("=" * 60 + "\n")
-            log_message("GPU 없음 - CPU 모드로 실행합니다.", "INFO")
+            log_message("⚠️ GPU 없음 - CPU 모드로 실행합니다.", "WARNING")
             return False, None
     except Exception as e:
         sys.stderr.write(f"❌ GPU 체크 중 오류 발생: {e}\n")

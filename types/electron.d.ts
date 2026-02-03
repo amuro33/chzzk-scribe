@@ -33,7 +33,7 @@ declare global {
             // Whisper
             getWhisperStatus: (engineId: string) => Promise<any>;
             getEngineStatus: (engineId: string) => Promise<any>;
-            installWhisperEngine: (engineId: string) => Promise<{ success: boolean; error?: string }>;
+            installWhisperEngine: (engineId: string, useGpu?: boolean) => Promise<{ success: boolean; error?: string }>;
             onEngineInstallProgress: (callback: (data: { engineId: string; progress: number; error?: string }) => void) => () => void;
             downloadWhisperResource: (type: 'model' | 'engine', engineId: string, modelId?: string) => Promise<{ success: boolean; path?: string; error?: string }>;
             cancelWhisperDownload: (type: 'model' | 'engine', engineId: string, modelId?: string) => Promise<{ success: boolean; error?: string }>;

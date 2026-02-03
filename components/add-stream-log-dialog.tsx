@@ -35,6 +35,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface AddStreamLogDialogProps {
   open: boolean;
@@ -100,12 +110,21 @@ export function AddStreamLogDialog({
   const [engineInstalled, setEngineInstalled] = useState(false);
   const [installingEngine, setInstallingEngine] = useState(false);
   const [engineInstallProgress, setEngineInstallProgress] = useState(0);
+  const [engineInstallLog, setEngineInstallLog] = useState<string>('');
+  const [engineType, setEngineType] = useState<'gpu' | 'cpu' | null>(null); // GPU or CPU
+  const [engineCorrupted, setEngineCorrupted] = useState(false);
+  const [engineCorruptedMsg, setEngineCorruptedMsg] = useState<string>('');
+  const [showInstallDialog, setShowInstallDialog] = useState(false);
+  const [showDeleteEngineDialog, setShowDeleteEngineDialog] = useState(false);
 
   // faster-whisper는 사용자가 직접 다운로드해야 함
   const isEngineDownloadable = (engineId: string) => engineId === "faster-whisper";
 
-  const engineInfo: Record<string, string> = {
-    "faster-whisper": "NVIDIA GPU 최적화 엔진 (CPU도 지원, 가장 빠름)",
+  const getEngineInfo = () => {
+    if (!engineType) return "NVIDIA GPU 최적화 엔진 (CPU도 지원, 가장 빠름)";
+    return engineType === 'gpu' 
+      ? "NVIDIA GPU 가속 엔진 (매우 빠름)"
+      : "CPU 전용 엔진 (느림)";
   };
 
   const [downloading, setDownloading] = useState<Record<string, number>>({});
@@ -139,6 +158,13 @@ export function AddStreamLogDialog({
     if (!eid) return;
     const status = await ipcBridge.getWhisperStatus(eid);
     if (status) {
+         // GPU 타입 설정
+         if (status.engineType) {
+           setEngineType(status.engineType);
+         }
+         // 손상 상태 설정
+         setEngineCorrupted(status.corrupted || false);
+         setEngineCorruptedMsg(status.corruptedMessage || '');
          setEngines(prev => prev.map(e => e.id === eid ? { ...e, available: status.isEngineReady } : e));
          // 현재 선택된 엔진인 경우에만 모델 상태 업데이트 (다른 엔진 상태 조회 시 모델 목록 덮어쓰기 방지)
          if (eid === selectedEngine) {
@@ -215,11 +241,12 @@ export function AddStreamLogDialog({
   }, [selectedEngine]);
 
   useEffect(() => {
-    const cleanup = ipcBridge.onEngineInstallProgress(({ engineId, progress, error }) => {
+    const cleanup = ipcBridge.onEngineInstallProgress(({ engineId, progress, error, message }) => {
         if (progress === -1 || error) {
             // 설치 실패
             setInstallingEngine(false);
             setEngineInstallProgress(0);
+            setEngineInstallLog('');
             // 상세한 에러 메시지 표시
             const errorMsg = error || '알 수 없는 오류';
             const errorLines = errorMsg.split('\\n');
@@ -238,9 +265,13 @@ export function AddStreamLogDialog({
             // 설치 완료
             setInstallingEngine(false);
             setEngineInstallProgress(0);
+            setEngineInstallLog('');
             setTimeout(() => refreshEngineStatus(), 100);
         } else {
             setEngineInstallProgress(progress);
+            if (message) {
+                setEngineInstallLog(message);
+            }
         }
     });
     return cleanup;
@@ -295,19 +326,8 @@ export function AddStreamLogDialog({
 
   const handleDownloadResource = async (type: 'model' | 'engine', id: string) => {
     if (type === 'engine') {
-      // 엔진 설치
-      setInstallingEngine(true);
-      setEngineInstallProgress(0);
-      try {
-        const result = await ipcBridge.installWhisperEngine(id);
-        if (!result.success) {
-          alert(`엔진 설치 실패: ${result.error}`);
-          setInstallingEngine(false);
-        }
-      } catch (err: any) {
-        alert(`엔진 설치 중 오류: ${err.message}`);
-        setInstallingEngine(false);
-      }
+      // 엔진 설치 - 먼저 GPU/CPU 선택 다이얼로그 표시
+      setShowInstallDialog(true);
     } else {
       // 모델 다운로드
       setDownloading(prev => ({ ...prev, [id]: 0.01 })); // Optimistic update
@@ -317,10 +337,47 @@ export function AddStreamLogDialog({
     }
   };
 
+  const handleInstallEngine = async (useGpu: boolean) => {
+    setShowInstallDialog(false);
+    setInstallingEngine(true);
+    setEngineInstallProgress(0);
+    setEngineInstallLog('엔진 설치 준비 중...');
+    try {
+      const result = await ipcBridge.installWhisperEngine(selectedEngine, useGpu);
+      if (!result.success) {
+        alert(`엔진 설치 실패: ${result.error}`);
+        setInstallingEngine(false);
+      }
+    } catch (err: any) {
+      alert(`엔진 설치 중 오류: ${err.message}`);
+      setInstallingEngine(false);
+    }
+  };
+
   const handleDeleteResource = async (type: 'model' | 'engine', id: string) => {
-    if (!confirm("정말 삭제하시겠습니까? 다운로드된 파일이 영구적으로 삭제됩니다.")) return;
-    await ipcBridge.deleteWhisperResource(type, selectedEngine, type === 'model' ? id : undefined);
-    refreshStatus(selectedEngine);
+    if (type === 'engine') {
+      setShowDeleteEngineDialog(true);
+    } else {
+      if (!confirm("정말 삭제하시겠습니까? 다운로드된 파일이 영구적으로 삭제됩니다.")) return;
+      await ipcBridge.deleteWhisperResource(type, selectedEngine, id);
+      refreshStatus(selectedEngine);
+    }
+  };
+
+  const handleConfirmDeleteEngine = async () => {
+    setShowDeleteEngineDialog(false);
+    try {
+      const result = await ipcBridge.deleteWhisperResource('engine', selectedEngine);
+      if (result.success) {
+        setEngineType(null);
+        await refreshStatus(selectedEngine);
+        alert('엔진이 성공적으로 삭제되었습니다.');
+      } else {
+        alert(`엔진 삭제 실패: ${result.error}`);
+      }
+    } catch (err: any) {
+      alert(`엔진 삭제 중 오류: ${err.message}`);
+    }
   };
 
   const canCreate = () => {
@@ -395,6 +452,7 @@ export function AddStreamLogDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
@@ -556,6 +614,14 @@ export function AddStreamLogDialog({
         ) : (
           <ScrollArea className="h-full bg-muted/5 rounded-lg border">
             <div className="p-4 space-y-6">
+              {engineCorrupted && engineCorruptedMsg && (
+                <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-sm">
+                    <strong>엔진 오류: </strong>{engineCorruptedMsg}
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium text-foreground/80">인식 엔진</Label>
@@ -584,26 +650,52 @@ export function AddStreamLogDialog({
                                 <span className={`text-sm ${!engine.available && "text-muted-foreground"}`}>{engine.name}</span>
                               </div>
                               <span className="text-[10px] text-muted-foreground pl-6">
-                                {engineInfo[engine.id]}
+                                {getEngineInfo()}
+                                {engineType && (
+                                  <Badge variant={engineType === 'gpu' ? 'default' : 'secondary'} className="ml-2 text-[9px] px-1.5 py-0">
+                                    {engineType === 'gpu' ? 'NVIDIA GPU' : 'CPU'}
+                                  </Badge>
+                                )}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell className="text-center py-2">
                             {installingEngine && engine.id === selectedEngine ? (
-                              <div className="w-[120px] mx-auto space-y-1">
-                                <div className="flex items-center justify-between text-[10px] text-muted-foreground px-0.5">
-                                  <span className="flex items-center gap-1">
-                                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                                    설치 중...
-                                  </span>
-                                  <span className="font-mono">{(engineInstallProgress * 100).toFixed(0)}%</span>
+                              <div className="w-[200px] mx-auto">
+                                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                  <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                                  <span className="truncate text-left flex-1">{engineInstallLog || '설치 중...'}</span>
                                 </div>
-                                <Progress value={engineInstallProgress * 100} className="h-1.5" />
                               </div>
-                            ) : engine.available ? (
-                              <div className="inline-flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
-                                <CheckCircle2 className="h-2.5 w-2.5" />
-                                <span>준비됨</span>
+                            ) : engine.available || engineCorrupted ? (
+                              <div className="group relative flex justify-center h-6 w-full items-center">
+                                {engineCorrupted ? (
+                                  <div className="absolute transition-opacity group-hover:opacity-0 inline-flex items-center gap-1 text-[10px] font-medium text-destructive bg-destructive/10 px-2 py-0.5 rounded-full border border-destructive/20">
+                                    <AlertCircle className="h-2.5 w-2.5" />
+                                    <span>손상됨</span>
+                                  </div>
+                                ) : (
+                                  <div className="absolute transition-opacity group-hover:opacity-0 inline-flex items-center gap-1.5 text-[10px] font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                                    <CheckCircle2 className="h-2.5 w-2.5" />
+                                    <span>준비됨</span>
+                                    {engineType && (
+                                      <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${engineType === 'gpu' ? 'bg-green-600 text-white' : 'bg-orange-600 text-white'}`}>
+                                        {engineType === 'gpu' ? 'NVIDIA' : 'CPU'}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                <Button
+                                  size="sm" variant="ghost"
+                                  className="h-6 text-[10px] px-2 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteResource('engine', engine.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  제거
+                                </Button>
                               </div>
                             ) : isEngineDownloadable(engine.id) ? (
                               <Button 
@@ -755,5 +847,86 @@ export function AddStreamLogDialog({
     </div>
       </DialogContent>
     </Dialog>
+
+    {/* GPU/CPU 선택 다이얼로그 */}
+    <AlertDialog open={showInstallDialog} onOpenChange={setShowInstallDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Whisper 엔진 설치</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3">
+              <div>Whisper 음성 인식 엔진을 설치합니다. 어떤 버전을 설치하시겠습니까?</div>
+              <div className="space-y-2 pt-2">
+                <div className="p-3 border rounded-lg bg-green-50 border-green-200">
+                  <div className="font-semibold text-green-900 mb-1">🚀 NVIDIA GPU 버전 (권장)</div>
+                  <div className="text-xs text-green-800">
+                    • NVIDIA 그래픽카드가 있는 경우 선택<br/>
+                    • GPU 가속으로 매우 빠른 처리 속도<br/>
+                    • 설치 용량: 약 4-5GB
+                  </div>
+                </div>
+                <div className="p-3 border rounded-lg bg-orange-50 border-orange-200">
+                  <div className="font-semibold text-orange-900 mb-1">🐌 CPU 전용 버전</div>
+                  <div className="text-xs text-orange-800">
+                    • GPU가 없거나 호환되지 않는 경우 선택<br/>
+                    • 처리 속도가 느림 (GPU 대비 10-20배)<br/>
+                    • 설치 용량: 약 1-2GB
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground pt-2">
+                💡 처음 설치 시 Python 환경과 필요한 패키지를 다운로드하므로 시간이 걸릴 수 있습니다.
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>취소</AlertDialogCancel>
+          <AlertDialogAction onClick={() => handleInstallEngine(false)} className="bg-orange-600 hover:bg-orange-700">
+            CPU 버전 설치
+          </AlertDialogAction>
+          <AlertDialogAction onClick={() => handleInstallEngine(true)} className="bg-green-600 hover:bg-green-700">
+            NVIDIA GPU 버전 설치
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* 엔진 삭제 확인 다이얼로그 */}
+    <AlertDialog open={showDeleteEngineDialog} onOpenChange={setShowDeleteEngineDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>엔진 삭제 확인</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3">
+              <div className="font-semibold text-foreground">
+                Whisper 엔진을 정말 삭제하시겠습니까?
+              </div>
+              <div className="p-3 border rounded-lg bg-destructive/5 border-destructive/20">
+                <div className="text-sm text-foreground">삭제될 항목:</div>
+                <ul className="text-xs text-muted-foreground mt-2 space-y-1 ml-4 list-disc">
+                  <li>PyTorch 라이브러리 ({engineType === 'gpu' ? 'CUDA 버전 ~4-5GB' : 'CPU 버전 ~1-2GB'})</li>
+                  <li>Faster-Whisper 패키지</li>
+                  <li>관련 종속성 파일들</li>
+                </ul>
+              </div>
+              <div className="text-xs text-destructive font-medium">
+                ⚠️ 삭제된 파일은 복구할 수 없으며, 다시 사용하려면 재설치가 필요합니다.
+              </div>
+              <div className="text-xs text-muted-foreground">
+                💡 다운로드된 모델 파일은 삭제되지 않으며 그대로 유지됩니다.
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>취소</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmDeleteEngine} className="bg-destructive hover:bg-destructive/90">
+            삭제하기
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
