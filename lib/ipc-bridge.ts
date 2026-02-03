@@ -110,6 +110,10 @@ export const ipcBridge = {
         if (isElectron) return window.electron.onTaskLog(callback);
         return () => {};
     },
+    onTasksRestored: (callback: (data: any) => void) => {
+        if (isElectron) return window.electron.onTasksRestored(callback);
+        return () => {};
+    },
     convertLocalJsonToAss: async (folderPath: string, fileName: string, settings: any) => {
         if (!isElectron) return { success: false, error: 'Not in Electron environment' };
         return window.electron.convertLocalJsonToAss(folderPath, fileName, settings);
