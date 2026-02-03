@@ -20,6 +20,9 @@ import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import { ipcBridge } from "@/lib/ipc-bridge";
 
+// 앱 시작 시간 체크용 (download-processor와 동일한 키 사용)
+const APP_START_KEY = 'chzzk-scribe-app-start';
+
 // Heavy components - lazy load
 const AddStreamLogDialog = dynamic(() => import("@/components/add-stream-log-dialog").then(mod => ({ default: mod.AddStreamLogDialog })), {
   loading: () => <div className="text-sm text-muted-foreground">로딩 중...</div>,
@@ -46,21 +49,29 @@ export default function AnalysisPage() {
 
   // 프로그램 재시작 시 작업 중이던 항목들 정리 (최초 1회만)
   useEffect(() => {
-    console.log('[Analysis] 컴포넌트 마운트 - 초기화 시작');
-    const stuckTasks = transcriptionTasks.filter(t => 
-      t.status === "processing" || t.status === "queued"
-    );
+    // sessionStorage를 사용해서 정말로 프로그램이 재시작된 경우에만 cleanup 실행
+    const appStartTime = sessionStorage.getItem(APP_START_KEY);
+    const isRecentStart = appStartTime && (Date.now() - parseInt(appStartTime)) < 5000; // 5초 이내
     
-    if (stuckTasks.length > 0) {
-      console.log(`[Analysis] 프로그램 재시작 감지 - ${stuckTasks.length}개 작업을 실패 처리합니다.`);
-      for (const task of stuckTasks) {
-        updateTranscriptionTask(task.id, { 
-          status: 'failed', 
-          error: '프로그램 재시작으로 인한 작업 중단',
-          progress: 0
-        });
-        toast.error(`작업 중단됨: ${task.vodTitle}`);
+    if (isRecentStart) {
+      console.log('[Analysis] 컴포넌트 마운트 - 초기화 시작');
+      const stuckTasks = transcriptionTasks.filter(t => 
+        t.status === "processing" || t.status === "queued"
+      );
+      
+      if (stuckTasks.length > 0) {
+        console.log(`[Analysis] 프로그램 재시작 감지 - ${stuckTasks.length}개 작업을 실패 처리합니다.`);
+        for (const task of stuckTasks) {
+          updateTranscriptionTask(task.id, { 
+            status: 'failed', 
+            error: '프로그램 재시작으로 인한 작업 중단',
+            progress: 0
+          });
+          toast.error(`작업 중단됨: ${task.vodTitle}`);
+        }
       }
+    } else {
+      console.log('[Analysis] 페이지 이동으로 인한 마운트 - cleanup 스킵');
     }
   }, []); // 최초 1회만 실행
 

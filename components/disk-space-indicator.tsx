@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ipcBridge } from "@/lib/ipc-bridge";
 import {
     Tooltip,
     TooltipContent,
@@ -16,11 +17,9 @@ export function DiskSpaceIndicator() {
     const [usage, setUsage] = useState<{ free: number; size: number; label: string } | null>(null);
 
     const updateDiskUsage = async () => {
-        if (typeof window !== "undefined" && (window as any).electron?.getDiskUsage) {
-            const data = await (window as any).electron.getDiskUsage(appSettings.downloadPath);
-            if (data) {
-                setUsage(data);
-            }
+        const data = await ipcBridge.getDiskUsage(appSettings.downloadPath);
+        if (data) {
+            setUsage(data);
         }
     };
 

@@ -261,11 +261,7 @@ export function HomeContent() {
     e.preventDefault();
     e.stopPropagation();
 
-    if (typeof window !== 'undefined' && (window as any).electron) {
-      (window as any).electron.openExternal(url);
-    } else {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
+    ipcBridge.openExternal(url);
   };
 
 

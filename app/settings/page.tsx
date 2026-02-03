@@ -22,6 +22,7 @@ import { useState, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
+import { ipcBridge, isElectron } from "@/lib/ipc-bridge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +39,7 @@ import { Progress } from "@/components/ui/progress";
 function SettingsContent() {
   const searchParams = useSearchParams();
   const isFirstTime = searchParams.get("firstTime") === "true";
-  
+
   const { downloads, appSettings, setAppSettings, resetSettings } = useAppStore();
   const { setTheme } = useTheme();
   const [appVersion, setAppVersion] = useState<string>("v1.0.0");
@@ -51,9 +52,9 @@ function SettingsContent() {
   const [updateInfo, setUpdateInfo] = useState<any>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !(window as any).electron) return;
+    if (!isElectron) return;
 
-    const cleanupStatus = (window as any).electron.onUpdateStatus((status: any, info: any) => {
+    const cleanupStatus = ipcBridge.onUpdateStatus((status: any, info: any) => {
       setUpdateStatus(status);
       if (status === 'available' || status === 'downloaded') {
         setUpdateInfo(info);
@@ -66,7 +67,7 @@ function SettingsContent() {
       }
     });
 
-    const cleanupProgress = (window as any).electron.onUpdateProgress((percent: number) => {
+    const cleanupProgress = ipcBridge.onUpdateProgress((percent: number) => {
       setUpdateProgress(percent);
       setUpdateStatus('downloading');
     });
@@ -91,14 +92,14 @@ function SettingsContent() {
   }, []);
 
   const handleCheckForUpdates = async () => {
-    if (!(window as any).electron?.checkForUpdates) {
+    if (!isElectron) {
       toast.error("Electron 환경이 아닙니다.");
       return;
     }
 
     try {
       setUpdateStatus('checking');
-      await (window as any).electron.checkForUpdates();
+      await ipcBridge.checkForUpdates();
     } catch (error) {
       console.error(error);
       setUpdateStatus('error');
@@ -106,9 +107,7 @@ function SettingsContent() {
   };
 
   const handleApplyUpdate = () => {
-    if ((window as any).electron?.quitAndInstall) {
-      (window as any).electron.quitAndInstall();
-    }
+    ipcBridge.quitAndInstall();
   };
 
   return (
@@ -161,9 +160,8 @@ function SettingsContent() {
                 <h2 className="text-lg font-medium">다운로드</h2>
               </div>
 
-              <div className={`grid gap-6 rounded-xl border bg-card p-6 shadow-sm transition-all duration-500 ${
-                isFirstTime ? "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse" : ""
-              }`}>
+              <div className={`grid gap-6 rounded-xl border bg-card p-6 shadow-sm transition-all duration-500 ${isFirstTime ? "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse" : ""
+                }`}>
                 {isFirstTime && (
                   <div className="rounded-lg bg-primary/10 border border-primary/20 p-4 animate-in fade-in slide-in-from-top-2 duration-500">
                     <div className="flex items-start gap-3">
@@ -171,14 +169,14 @@ function SettingsContent() {
                       <div>
                         <p className="font-semibold text-primary mb-1">처음 오셨군요! 👋</p>
                         <p className="text-sm text-muted-foreground">
-                          먼저 <strong className="text-foreground">기본 저장 경로</strong>를 설정해주세요. 
+                          먼저 <strong className="text-foreground">기본 저장 경로</strong>를 설정해주세요.
                           다운로드한 영상과 채팅이 이 폴더에 저장됩니다.
                         </p>
                       </div>
                     </div>
                   </div>
                 )}
-                
+
                 <div className={`grid gap-2 ${isFirstTime ? "animate-in fade-in slide-in-from-left-2 duration-700 delay-300" : ""}`}>
                   <Label className={isFirstTime ? "text-primary font-bold" : ""}>
                     기본 저장 경로 {isFirstTime && <span className="text-primary">⬅️ 여기를 설정하세요!</span>}
@@ -195,13 +193,11 @@ function SettingsContent() {
                       size="icon"
                       className={isFirstTime ? "animate-bounce" : ""}
                       onClick={async () => {
-                        if ((window as any).electron?.selectDirectory) {
-                          const path = await (window as any).electron.selectDirectory(appSettings.downloadPath);
-                          if (path) {
-                            setAppSettings({ downloadPath: path });
-                            if (isFirstTime) {
-                              toast.success("저장 경로가 설정되었습니다! 이제 치지직 스크라이브를 사용할 준비가 되었습니다. 🎉");
-                            }
+                        const path = await ipcBridge.selectDirectory(appSettings.downloadPath);
+                        if (path) {
+                          setAppSettings({ downloadPath: path });
+                          if (isFirstTime) {
+                            toast.success("저장 경로가 설정되었습니다! 이제 치지직 스크라이브를 사용할 준비가 되었습니다. 🎉");
                           }
                         }
                       }}
@@ -229,11 +225,9 @@ function SettingsContent() {
                       variant="outline"
                       size="icon"
                       onClick={async () => {
-                        if ((window as any).electron?.selectDirectory) {
-                          const defaultTempPath = appSettings.tempPath || (appSettings.downloadPath ? `${appSettings.downloadPath}\\.downloading` : undefined);
-                          const path = await (window as any).electron.selectDirectory(defaultTempPath);
-                          if (path) setAppSettings({ tempPath: path });
-                        }
+                        const defaultTempPath = appSettings.tempPath || (appSettings.downloadPath ? `${appSettings.downloadPath}\\.downloading` : undefined);
+                        const path = await ipcBridge.selectDirectory(defaultTempPath);
+                        if (path) setAppSettings({ tempPath: path });
                       }}
                     >
                       <FolderOpen className="h-4 w-4" />
@@ -387,11 +381,7 @@ function SettingsContent() {
                         className="text-primary underline hover:text-primary/80"
                         onClick={(e) => {
                           e.preventDefault();
-                          if ((window as any).electron?.openExternal) {
-                            (window as any).electron.openExternal("https://github.com/amuro33/chzzk-scribe");
-                          } else {
-                            window.open("https://github.com/amuro33/chzzk-scribe", "_blank");
-                          }
+                          ipcBridge.openExternal("https://github.com/amuro33/chzzk-scribe");
                         }}
                       >
                         github.com/amuro33/chzzk-scribe

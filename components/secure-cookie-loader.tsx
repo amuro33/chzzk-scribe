@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAppStore } from "@/lib/store";
+import { ipcBridge, isElectron } from "@/lib/ipc-bridge";
 
 /**
  * SecureCookieLoader
@@ -25,13 +26,13 @@ export function SecureCookieLoader() {
             }
 
             // Only works in Electron environment
-            if (typeof window === 'undefined' || !(window as any).electron?.loadEncryptedCookies) {
+            if (!isElectron) {
                 console.log("[SecureCookieLoader] Not in Electron environment");
                 return;
             }
 
             try {
-                const cookies = await (window as any).electron.loadEncryptedCookies();
+                const cookies = await ipcBridge.loadEncryptedCookies();
                 if (cookies && cookies.nidAut && cookies.nidSes) {
                     setNaverCookies(cookies);
                     console.log("[SecureCookieLoader] Encrypted cookies loaded successfully");

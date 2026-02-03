@@ -6,12 +6,20 @@
 
 // Global window extension is now handled in types/electron.d.ts
 
-const isElectron = typeof window !== 'undefined' && !!window.electron;
+export const isElectron = typeof window !== 'undefined' && !!window.electron;
 
 export const ipcBridge = {
     searchChannels: async (keyword: string) => {
         if (!isElectron) return [];
         return window.electron.searchChannels(keyword);
+    },
+    openNaverLogin: async () => {
+        if (!isElectron) return null;
+        return window.electron.openNaverLogin();
+    },
+    logoutNaver: async () => {
+        if (!isElectron) return false;
+        return window.electron.logoutNaver();
     },
     getChannelVideos: async (channelId: string, page: number, size: number, sortType: string, cookies: any, videoType: string) => {
         if (!isElectron) return { videos: [], page: 0, size, totalCount: 0, totalPages: 0 };
@@ -71,7 +79,7 @@ export const ipcBridge = {
     },
     onEngineInstallProgress: (callback: (data: any) => void) => {
         if (isElectron) return window.electron.onEngineInstallProgress(callback);
-        return () => {};
+        return () => { };
     },
     checkFileExists: async (filePath: string) => {
         if (!isElectron) return false;
@@ -91,7 +99,7 @@ export const ipcBridge = {
     },
     onDownloadProgress: (callback: (data: any) => void) => {
         if (isElectron) return window.electron.onDownloadProgress(callback);
-        return () => {};
+        return () => { };
     },
     // Task
     addTranscriptionTask: async (task: any) => {
@@ -104,15 +112,19 @@ export const ipcBridge = {
     },
     onTaskUpdate: (callback: (data: any) => void) => {
         if (isElectron) return window.electron.onTaskUpdate(callback);
-        return () => {};
+        return () => { };
     },
     onTaskLog: (callback: (data: any) => void) => {
         if (isElectron) return window.electron.onTaskLog(callback);
-        return () => {};
+        return () => { };
     },
     onTasksRestored: (callback: (data: any) => void) => {
         if (isElectron) return window.electron.onTasksRestored(callback);
-        return () => {};
+        return () => { };
+    },
+    onMaximizedChange: (callback: (isMaximized: boolean) => void) => {
+        if (isElectron) return window.electron.onMaximizedChange(callback);
+        return () => { };
     },
     convertLocalJsonToAss: async (folderPath: string, fileName: string, settings: any) => {
         if (!isElectron) return { success: false, error: 'Not in Electron environment' };
@@ -166,5 +178,20 @@ export const ipcBridge = {
     getAppVersion: async () => {
         if (!isElectron) return '1.0.0'; // Fallback
         return window.electron.getAppVersion();
+    },
+    checkForUpdates: async () => {
+        if (!isElectron) return { error: 'Not electron' };
+        return window.electron.checkForUpdates();
+    },
+    quitAndInstall: async () => {
+        if (isElectron) return window.electron.quitAndInstall();
+    },
+    onUpdateStatus: (callback: (status: string, info: any) => void) => {
+        if (isElectron) return window.electron.onUpdateStatus(callback);
+        return () => { };
+    },
+    onUpdateProgress: (callback: (percent: number) => void) => {
+        if (isElectron) return window.electron.onUpdateProgress(callback);
+        return () => { };
     }
 };

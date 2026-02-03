@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAppStore, type VOD } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { ipcBridge, isElectron } from "@/lib/ipc-bridge";
 
 interface VODCardProps {
   vod: VOD;
@@ -54,7 +55,7 @@ export function VODCard({ vod, onDownload, onChatDownload, isCompact = false }: 
   const handleDownloadClick = async (type: 'video' | 'chat', resolution?: string) => {
     // 1. Check if adult content and not logged in
     if (vod.adult && !naverCookies) {
-      if (typeof window !== 'undefined' && (window as any).electron) {
+      if (isElectron) {
         // Show custom confirmation dialog
         setPendingAction({ type, resolution });
         setShowLoginConfirm(true);
@@ -71,7 +72,7 @@ export function VODCard({ vod, onDownload, onChatDownload, isCompact = false }: 
 
   const handleLoginConfirm = async () => {
     try {
-      const cookies = await (window as any).electron.openNaverLogin();
+      const cookies = await ipcBridge.openNaverLogin();
       if (cookies) {
         setNaverCookies(cookies);
         // Proceed with pending action

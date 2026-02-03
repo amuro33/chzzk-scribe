@@ -5,11 +5,16 @@ import { useAppStore } from "@/lib/store";
 import { ipcBridge } from "@/lib/ipc-bridge";
 import { toast } from "sonner";
 
+// 앱 시작 시간을 전역으로 저장 (단 한 번만)
+const APP_START_KEY = 'chzzk-scribe-app-start';
+if (typeof window !== 'undefined' && !sessionStorage.getItem(APP_START_KEY)) {
+    sessionStorage.setItem(APP_START_KEY, Date.now().toString());
+}
+
 export function DownloadProcessor() {
     const { downloads, updateDownload } = useAppStore();
     const processingRef = useRef<Set<string>>(new Set());
     const mountedRef = useRef(false);
-    const initialCleanupDone = useRef(false);
 
     // Helper to start polling for a specific item
     const startPolling = (itemId: string) => {
@@ -82,25 +87,32 @@ export function DownloadProcessor() {
 
     // Initial cleanup: 프로그램 재시작 시 작업 중이던 항목들 즉시 실패 처리
     useEffect(() => {
-        console.log('[Processor] 컴포넌트 마운트 - 초기화 시작');
-        const state = useAppStore.getState();
-        const { downloads, updateDownload } = state;
+        // sessionStorage를 사용해서 정말로 프로그램이 재시작된 경우에만 cleanup 실행
+        const appStartTime = sessionStorage.getItem(APP_START_KEY);
+        const isRecentStart = appStartTime && (Date.now() - parseInt(appStartTime)) < 5000; // 5초 이내
         
-        const stuckItems = downloads.filter(d => 
-            d.status === "downloading" || d.status === "converting"
-        );
-        
-        if (stuckItems.length > 0) {
-            console.log(`[Processor] 프로그램 재시작 감지 - ${stuckItems.length}개 항목을 실패 처리합니다.`);
-            for (const item of stuckItems) {
-                updateDownload(item.id, { 
-                    status: "failed", 
-                    error: "프로그램 재시작으로 인한 다운로드 중단" 
-                });
-                toast.error(`다운로드 중단됨: ${item.title}`);
+        if (isRecentStart) {
+            console.log('[Processor] 컴포넌트 마운트 - 초기화 시작');
+            const state = useAppStore.getState();
+            const { downloads, updateDownload } = state;
+            
+            const stuckItems = downloads.filter(d => 
+                d.status === "downloading" || d.status === "converting"
+            );
+            
+            if (stuckItems.length > 0) {
+                console.log(`[Processor] 프로그램 재시작 감지 - ${stuckItems.length}개 항목을 실패 처리합니다.`);
+                for (const item of stuckItems) {
+                    updateDownload(item.id, { 
+                        status: "failed", 
+                        error: "프로그램 재시작으로 인한 다운로드 중단" 
+                    });
+                    toast.error(`다운로드 중단됨: ${item.title}`);
+                }
             }
+        } else {
+            console.log('[Processor] 페이지 이동으로 인한 마운트 - cleanup 스킵');
         }
-        initialCleanupDone.current = true;
     }, []); // 최초 1회만 실행
 
     // Unified queue processing effect

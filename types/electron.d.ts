@@ -10,7 +10,7 @@ declare global {
             selectDirectory: (defaultPath?: string) => Promise<string | null>;
             selectFile: (filters?: any[]) => Promise<string | null>;
             readFile: (filePath: string) => Promise<string>;
-            getDiskUsage: (folderPath: string) => Promise<{ free: number; size: number }>;
+            getDiskUsage: (folderPath: string) => Promise<{ free: number; size: number; label: string }>;
 
             // Secure Cookie Storage
             encryptAndSaveCookies: (cookies: any) => Promise<boolean>;
@@ -45,6 +45,7 @@ declare global {
             cancelTranscriptionTask: (taskId: string) => Promise<{ success: boolean; error?: string }>;
             onTaskUpdate: (callback: (data: { taskId: string; status: string; progress: number; result?: any; error?: string }) => void) => () => void;
             onTaskLog: (callback: (data: { taskId: string; message: string; type: string }) => void) => () => void;
+            onTasksRestored: (callback: (data: any) => void) => () => void;
 
             // Migrated Actions
             searchChannels: (keyword: string) => Promise<any[]>;

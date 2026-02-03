@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ipcBridge } from "@/lib/ipc-bridge";
 import { toast } from "sonner";
 import { User, LogOut } from "lucide-react";
 import {
@@ -28,45 +29,39 @@ export function NaverLoginButton() {
     };
 
     const handleLogin = async () => {
-        if (typeof window !== 'undefined' && (window as any).electron) {
-            try {
-                toast.info("네이버 로그인 창을 엽니다...");
-                const cookies = await (window as any).electron.openNaverLogin();
-                if (cookies) {
-                    // Store in encrypted storage
-                    const saved = await (window as any).electron.encryptAndSaveCookies(cookies);
-                    if (saved) {
-                        setNaverCookies(cookies);
-                        toast.success("네이버 로그인 성공! (암호화 저장됨)");
-                    } else {
-                        // Fallback: store in memory only (won't persist across restarts)
-                        setNaverCookies(cookies);
-                        toast.warning("로그인 성공 (암호화 저장 실패, 재시작 시 재로그인 필요)");
-                    }
+        try {
+            toast.info("네이버 로그인 창을 엽니다...");
+            const cookies = await ipcBridge.openNaverLogin();
+            if (cookies) {
+                // Store in encrypted storage
+                const saved = await ipcBridge.encryptAndSaveCookies(cookies);
+                if (saved) {
+                    setNaverCookies(cookies);
+                    toast.success("네이버 로그인 성공! (암호화 저장됨)");
                 } else {
-                    toast.error("네이버 로그인 취소 또는 실패");
+                    // Fallback: store in memory only (won't persist across restarts)
+                    setNaverCookies(cookies);
+                    toast.warning("로그인 성공 (암호화 저장 실패, 재시작 시 재로그인 필요)");
                 }
-            } catch (e) {
-                console.error(e);
-                toast.error("로그인 중 오류 발생");
+            } else {
+                toast.error("네이버 로그인 취소 또는 실패");
             }
-        } else {
-            toast.error("Electron 환경이 아닙니다.");
+        } catch (e) {
+            console.error(e);
+            toast.error("로그인 중 오류 발생");
         }
     };
 
     const handleLogout = async () => {
-        if (typeof window !== 'undefined' && (window as any).electron) {
-            try {
-                await (window as any).electron.logoutNaver();
-                // Clear encrypted storage
-                await (window as any).electron.clearEncryptedCookies();
-                setNaverCookies(null);
-                toast.success("로그아웃 되었습니다.");
-            } catch (e) {
-                console.error(e);
-                toast.error("로그아웃 실패");
-            }
+        try {
+            await ipcBridge.logoutNaver();
+            // Clear encrypted storage
+            await ipcBridge.clearEncryptedCookies();
+            setNaverCookies(null);
+            toast.success("로그아웃 되었습니다.");
+        } catch (e) {
+            console.error(e);
+            toast.error("로그아웃 실패");
         }
     };
 

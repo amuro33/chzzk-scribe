@@ -190,17 +190,22 @@ def main():
     log_message(f"🎙️ 음성 인식 시작...")
     log_progress(0.15, "preparing")  # 15% - 준비 중
     
+    # 언어 감지
+    if not language:
+        log_message("언어 자동 감지 중...")
+    
+    # 치지직 스트리밍 방송 최적화 설정
+    initial_prompt = "이 영상은 한국어 게임 방송 및 스트리밍 콘텐츠입니다."
+    
+    log_message("🔍 영상 분석 중... (첫 세그먼트가 나올 때까지 시간이 걸릴 수 있습니다)")
+    log_progress(0.2, "analyzing")  # 20% - 분석 중
+    
+    # GPU 사용 시 cuDNN 에러 발생하면 CPU로 재시도
+    transcribe_success = False
+    segments = None
+    info = None
+    
     try:
-        # 언어 감지
-        if not language:
-            log_message("언어 자동 감지 중...")
-        
-        # 치지직 스트리밍 방송 최적화 설정
-        initial_prompt = "이 영상은 한국어 게임 방송 및 스트리밍 콘텐츠입니다."
-        
-        log_message("🔍 영상 분석 중... (첫 세그먼트가 나올 때까지 시간이 걸릴 수 있습니다)")
-        log_progress(0.2, "analyzing")  # 20% - 분석 중
-        
         segments, info = model.transcribe(
             input_file,
             beam_size=5,
@@ -214,25 +219,92 @@ def main():
             initial_prompt=initial_prompt,  # 한국어 인식률 향상 (콜드 스타트 방지)
             condition_on_previous_text=True  # 문맥 유지
         )
+        transcribe_success = True
+    except Exception as transcribe_error:
+        error_msg = str(transcribe_error)
+        log_message(f"❌ 음성 인식 실패 ({device}): {error_msg}", "ERROR")
         
+        # cuDNN 에러 또는 CUDA 에러 시 CPU로 재시도
+        if device == "cuda" and ("cudnn" in error_msg.lower() or "cuda" in error_msg.lower()):
+            log_message("⚠️ GPU 실행 실패 - CPU 모드로 재시도 중...", "WARNING")
+            log_progress(0.05, "loading_model")
+            
+            try:
+                # CPU 모드로 모델 재로딩
+                device = "cpu"
+                compute_type = "int8"
+                model = WhisperModel(model_path, device=device, compute_type=compute_type)
+                log_message("✅ CPU 모드로 모델 재로딩 완료")
+                log_progress(0.15, "preparing")
+                
+                # CPU로 다시 시도
+                log_message("🔍 CPU로 영상 분석 중...")
+                log_progress(0.2, "analyzing")
+                
+                segments, info = model.transcribe(
+                    input_file,
+                    beam_size=5,
+                    language=language,
+                    vad_filter=True,
+                    vad_parameters=dict(
+                        min_silence_duration_ms=500,
+                        threshold=0.5
+                    ),
+                    word_timestamps=True,
+                    initial_prompt=initial_prompt,
+                    condition_on_previous_text=True
+                )
+                transcribe_success = True
+                log_message("✅ CPU 모드로 음성 인식 성공")
+            except Exception as cpu_error:
+                log_message(f"❌ CPU 모드에서도 실패: {cpu_error}", "ERROR")
+                error_result = {
+                    "type": "result",
+                    "success": False,
+                    "error": f"CPU/GPU 모두 실패: {cpu_error}"
+                }
+                print(json.dumps(error_result, ensure_ascii=False), flush=True)
+                sys.exit(1)
+        else:
+            # 다른 에러는 즉시 실패
+            error_result = {
+                "type": "result",
+                "success": False,
+                "error": str(transcribe_error)
+            }
+            print(json.dumps(error_result, ensure_ascii=False), flush=True)
+            sys.exit(1)
+    
+    if not transcribe_success or segments is None or info is None:
+        log_message("❌ 음성 인식 실패", "ERROR")
+        sys.exit(1)
+    
+    try:
+        
+        log_progress(0.22, "analyzing")  # 22% - 모델 준비 완료
         log_message(f"✅ 언어 감지: {info.language} (확률: {info.language_probability:.2f})")
         
         total_duration = info.duration
         log_message(f"📊 전체 길이: {total_duration:.1f}초")
         log_progress(0.25, "transcribing")  # 25% - 변환 시작
+        log_message("📝 자막 파일 생성 중... (첫 번째 세그먼트 처리 중)")
         
         # 출력 파일 경로
         base_name = os.path.splitext(os.path.basename(input_file))[0]
         srt_path = os.path.join(output_dir, f"{base_name}.srt")
         
         # SRT 파일 생성
-        log_message("📝 자막 파일 생성 중...")
-        
         segment_count = 0
         last_reported_percent = 25  # 25%부터 시작
+        first_segment = True
         
         with open(srt_path, "w", encoding="utf-8") as srt_file:
             for i, segment in enumerate(segments, start=1):
+                # 첫 번째 세그먼트를 받았을 때 알림
+                if first_segment:
+                    log_message("✅ 첫 번째 세그먼트 처리 완료, 나머지 처리 중...")
+                    log_progress(0.28, "transcribing")
+                    first_segment = False
                 # word_timestamps를 활용해 실제 첫/마지막 단어 시점 사용
                 if hasattr(segment, 'words') and segment.words and len(segment.words) > 0:
                     start_time = format_timestamp(segment.words[0].start)
