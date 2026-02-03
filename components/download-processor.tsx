@@ -9,6 +9,7 @@ export function DownloadProcessor() {
     const { downloads, updateDownload } = useAppStore();
     const processingRef = useRef<Set<string>>(new Set());
     const mountedRef = useRef(false);
+    const initialCleanupDone = useRef(false);
 
     // Helper to start polling for a specific item
     const startPolling = (itemId: string) => {
@@ -78,6 +79,29 @@ export function DownloadProcessor() {
         }, 1000);
         return pollInterval;
     };
+
+    // Initial cleanup: 프로그램 재시작 시 작업 중이던 항목들 즉시 실패 처리
+    useEffect(() => {
+        console.log('[Processor] 컴포넌트 마운트 - 초기화 시작');
+        const state = useAppStore.getState();
+        const { downloads, updateDownload } = state;
+        
+        const stuckItems = downloads.filter(d => 
+            d.status === "downloading" || d.status === "converting"
+        );
+        
+        if (stuckItems.length > 0) {
+            console.log(`[Processor] 프로그램 재시작 감지 - ${stuckItems.length}개 항목을 실패 처리합니다.`);
+            for (const item of stuckItems) {
+                updateDownload(item.id, { 
+                    status: "failed", 
+                    error: "프로그램 재시작으로 인한 다운로드 중단" 
+                });
+                toast.error(`다운로드 중단됨: ${item.title}`);
+            }
+        }
+        initialCleanupDone.current = true;
+    }, []); // 최초 1회만 실행
 
     // Unified queue processing effect
     useEffect(() => {

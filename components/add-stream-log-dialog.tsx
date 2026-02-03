@@ -156,27 +156,38 @@ export function AddStreamLogDialog({
    const refreshStatus = async (targetEngineId?: string) => {
     const eid = targetEngineId || selectedEngine;
     if (!eid) return;
-    const status = await ipcBridge.getWhisperStatus(eid);
-    if (status) {
-         // GPU 타입 설정
-         if (status.engineType) {
-           setEngineType(status.engineType);
-         }
-         // 손상 상태 설정
-         setEngineCorrupted(status.corrupted || false);
-         setEngineCorruptedMsg(status.corruptedMessage || '');
-         setEngines(prev => prev.map(e => e.id === eid ? { ...e, available: status.isEngineReady } : e));
-         // 현재 선택된 엔진인 경우에만 모델 상태 업데이트 (다른 엔진 상태 조회 시 모델 목록 덮어쓰기 방지)
-         if (eid === selectedEngine) {
-             setWhisperModels(prev => prev.map(m => {
-                 const mStatus = status.models?.[m.id];
-                 // 다운로드 중인 모델은 상태 업데이트를 건드리지 않음 (UI 깜빡임 방지)
-                 if (downloading[m.id] !== undefined) {
-                     return m;
-                 }
-                 return mStatus ? { ...m, downloaded: mStatus.downloaded } : m;
-             }));
-         }
+    
+    try {
+      const status = await ipcBridge.getWhisperStatus(eid);
+      if (status) {
+           // GPU 타입 설정
+           if (status.engineType) {
+             setEngineType(status.engineType);
+           }
+           // 손상 상태 설정
+           setEngineCorrupted(status.corrupted || false);
+           setEngineCorruptedMsg(status.corruptedMessage || '');
+           
+           // 엔진 available 및 engineInstalled 상태 동기화
+           const isReady = status.isEngineReady;
+           setEngines(prev => prev.map(e => e.id === eid ? { ...e, available: isReady } : e));
+           
+           // 현재 선택된 엔진인 경우 engineInstalled도 업데이트
+           if (eid === selectedEngine) {
+               setEngineInstalled(isReady);
+               
+               setWhisperModels(prev => prev.map(m => {
+                   const mStatus = status.models?.[m.id];
+                   // 다운로드 중인 모델은 상태 업데이트를 건드리지 않음 (UI 깜빡임 방지)
+                   if (downloading[m.id] !== undefined) {
+                       return m;
+                   }
+                   return mStatus ? { ...m, downloaded: mStatus.downloaded } : m;
+               }));
+           }
+      }
+    } catch (error) {
+      console.error('엔진 상태 확인 실패:', error);
     }
    };
 
@@ -261,12 +272,31 @@ export function AddStreamLogDialog({
             } else {
                 alert(`엔진 설치 실패: ${errorMsg}`);
             }
-        } else if (progress >= 1) {
-            // 설치 완료
-            setInstallingEngine(false);
-            setEngineInstallProgress(0);
-            setEngineInstallLog('');
-            setTimeout(() => refreshEngineStatus(), 100);
+        } else if (progress >= 0.98 || message?.includes('설치 완료')) {
+            // 설치 완료 (98% 이상이거나 "설치 완료" 메시지 포함 시)
+            setEngineInstallProgress(1);
+            setEngineInstallLog('설치 완료! 엔진 상태 확인 중...');
+            
+            // 상태 확인이 완전히 끝날 때까지 대기
+            (async () => {
+                try {
+                    // 여러 번 확인하여 상태가 안정적으로 업데이트될 때까지 대기
+                    for (let i = 0; i < 3; i++) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        await refreshStatus(selectedEngine);
+                    }
+                    
+                    // 모든 확인이 끝난 후 UI 정리
+                    setInstallingEngine(false);
+                    setEngineInstallProgress(0);
+                    setEngineInstallLog('');
+                } catch (err) {
+                    console.error('엔진 상태 확인 실패:', err);
+                    setInstallingEngine(false);
+                    setEngineInstallProgress(0);
+                    setEngineInstallLog('');
+                }
+            })();
         } else {
             setEngineInstallProgress(progress);
             if (message) {

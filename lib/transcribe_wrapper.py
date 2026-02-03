@@ -9,6 +9,13 @@ import json
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
+# HuggingFace Hub 경고 숨기기
+os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
+os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
+# 인증 없이 사용 (일반 사용자용)
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning, module='huggingface_hub')
+
 # 의존성 확인
 try:
     from faster_whisper import WhisperModel

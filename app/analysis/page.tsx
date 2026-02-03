@@ -44,6 +44,26 @@ export default function AnalysisPage() {
     ].filter(t => t.status === "processing" || t.status === "queued").length;
   }, [transcriptionTasks, analysisTasks]);
 
+  // 프로그램 재시작 시 작업 중이던 항목들 정리 (최초 1회만)
+  useEffect(() => {
+    console.log('[Analysis] 컴포넌트 마운트 - 초기화 시작');
+    const stuckTasks = transcriptionTasks.filter(t => 
+      t.status === "processing" || t.status === "queued"
+    );
+    
+    if (stuckTasks.length > 0) {
+      console.log(`[Analysis] 프로그램 재시작 감지 - ${stuckTasks.length}개 작업을 실패 처리합니다.`);
+      for (const task of stuckTasks) {
+        updateTranscriptionTask(task.id, { 
+          status: 'failed', 
+          error: '프로그램 재시작으로 인한 작업 중단',
+          progress: 0
+        });
+        toast.error(`작업 중단됨: ${task.vodTitle}`);
+      }
+    }
+  }, []); // 최초 1회만 실행
+
   useEffect(() => {
     // 작업 상태 업데이트 수신
     const cleanupUpdate = ipcBridge.onTaskUpdate(({ taskId, status, progress, result, error }) => {
