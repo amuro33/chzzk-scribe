@@ -88,10 +88,21 @@ export default function AnalysisPage() {
     const cleanupLog = ipcBridge.onTaskLog(({ taskId, message, type, timestamp }) => {
         addTranscriptionTaskLog(taskId, { message, type, timestamp });
     });
+    
+    // 복원된 작업 수신
+    const cleanupRestored = ipcBridge.onTasksRestored(({ count, tasks }) => {
+        console.log(`[Analysis] 복원된 작업: ${count}개`);
+        toast.info(`이전 세션의 작업 ${count}개가 복원되어 계속 진행됩니다.`, {
+            duration: 5000
+        });
+        // 작업 큐 탭으로 자동 전환
+        setActiveTab('task-queue');
+    });
 
     return () => {
         cleanupUpdate();
         cleanupLog();
+        cleanupRestored();
     };
   }, [transcriptionTasks, updateTranscriptionTask, addStreamLog, addTranscriptionTaskLog]);
 

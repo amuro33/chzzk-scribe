@@ -70,6 +70,11 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.on('task-log', handler);
         return () => ipcRenderer.removeListener('task-log', handler);
     },
+    onTasksRestored: (callback) => {
+        const handler = (_, data) => callback(data);
+        ipcRenderer.on('tasks-restored', handler);
+        return () => ipcRenderer.removeListener('tasks-restored', handler);
+    },
 
     // Migrated Actions
     searchChannels: (keyword) => ipcRenderer.invoke('search-channels', keyword),
