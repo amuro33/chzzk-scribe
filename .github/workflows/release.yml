@@ -91,11 +91,24 @@ jobs:
         run: |
           $version = (Get-Content package.json | ConvertFrom-Json).version
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          
+          # 태그 기반 트리거인지 확인
+          $isTag = "${{ github.ref_type }}" -eq "tag"
+          echo "IS_TAG=$isTag" >> $env:GITHUB_OUTPUT
+          
+          if ($isTag) {
+            echo "DRAFT=false" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "DRAFT=true" >> $env:GITHUB_OUTPUT
+          }
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
+          draft: ${{ steps.version.outputs.DRAFT }}
+          prerelease: false
+          name: ${{ steps.version.outputs.IS_TAG == 'true' && format('Release v{0}', steps.version.outputs.VERSION) || format('Draft Build v{0}', steps.version.outputs.VERSION) }}
           files: |
             dist_electron/*.exe
             dist_electron/*.zip
