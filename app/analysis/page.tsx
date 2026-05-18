@@ -1,3 +1,5 @@
+Total output lines: 1317
+
 "use client";
 
 import { useState, useEffect, useMemo, memo } from "react";
@@ -10,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Brain, Plus, Sparkles, X, PlayCircle, Info, Pause, Play, XCircle, RotateCcw, FileText, Download, Eye, Trash2, AlertCircle, Settings, ExternalLink, FolderOpen } from "lucide-react";
+import { Brain, Plus, Sparkles, X, PlayCircle, Info, Pause, Play, XCircle, RotateCcw, FileText, Download, Eye, Trash2, AlertCircle, Settings, ExternalLink, FolderOpen, CheckCircle2, KeyRound } from "lucide-react";
 import type { StreamLog, TranscriptionTask, AnalysisTask, AnalysisResult } from "@/types/analysis";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -398,479 +400,7 @@ function StreamLogTab({ setActiveTab }: { setActiveTab: (tab: string) => void })
              const download = downloads.find(d => d.vodId === vodId);
              if (download) {
                 vodTitle = download.title;
-                streamerName = download.streamerName || "Unknown";
-                thumbnailUrl = download.thumbnailUrl;
-             } else {
-                // downloads에 없으면 API에서 직접 가져오기 시도
-                try {
-                  const response = await fetch(`https://api.chzzk.naver.com/service/v3/videos/${vodId}`, {
-                    headers: { "User-Agent": "Mozilla/5.0" }
-                  });
-                  if (response.ok) {
-                    const result = await response.json();
-                    if (result.content) {
-                      vodTitle = result.content.videoTitle || filename || vodTitle;
-                      streamerName = result.content.channel?.channelName || streamerName;
-                      thumbnailUrl = result.content.thumbnailImageUrl;
-                    }
-                  }
-                } catch (error) {
-                  console.error('Failed to fetch VOD info:', error);
-                }
-                
-                // API 실패 시 파일명 사용
-                if (vodTitle === "Unknown Title" && filename) {
-                  vodTitle = filename;
-                }
-             }
-          } else if (filename) {
-             // 로컬 파일인 경우 파일명 사용
-             vodTitle = filename;
-          }
-
-          const newTask: TranscriptionTask = {
-            id: crypto.randomUUID(),
-            vodId: vodId || `local_${Date.now()}`,
-            vodTitle,
-            streamerName,
-            thumbnailUrl,
-            videoPath: data.videoPath,
-            vodUrl: data.vodUrl,
-            whisperModel: data.whisperModel,
-            whisperEngine: data.whisperEngine,
-            status: 'queued',
-            progress: 0,
-            createdAt: new Date().toISOString()
-          };
-          
-          addTranscriptionTask(newTask);
-          ipcBridge.addTranscriptionTask(newTask); // Electron Backend로 작업 전달
-          
-          // 썸네일이 있으면 스토어에 임시 다운로드 항목 추가 (썸네일 표시용)
-          if (thumbnailUrl && vodId) {
-            // downloads 배열에 임시로 추가하지 않고, 작업에만 썸네일 정보 포함
-            // 나중에 streamLog 생성 시 사용
-          }
-          
-          toast.success("작업이 큐에 추가되었습니다.");
-          setActiveTab("task-queue"); // 작업 큐 탭으로 이동
-        }}
-      />
-
-      <Dialog open={isAnalysisDialogOpen} onOpenChange={setIsAnalysisDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>AI 분석 설정</DialogTitle>
-            <DialogDescription>
-              {selectedLog?.vodTitle}
-            </DialogDescription>
-          </DialogHeader>
-          <AnalysisSettingsDialog
-            open={isAnalysisDialogOpen}
-            onOpenChange={setIsAnalysisDialogOpen}
-            streamLog={selectedLog}
-            onConfirm={(data) => {
-              console.log("AI 분석 시작:", data);
-              // TODO: 실제 AI 분석 시작 로직
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-// 페르소나 탭
-function PersonaTab() {
-  const { streamLogs, appSettings } = useAppStore();
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [provider, setProvider] = useState<"heuristic" | "openai" | "ollama">("heuristic");
-  const [model, setModel] = useState(appSettings.openaiModel || "gpt-5.5");
-  const [ollamaBaseUrl, setOllamaBaseUrl] = useState("http://localhost:11434");
-  const [glossary, setGlossary] = useState("");
-  const [resultPath, setResultPath] = useState("");
-  const [resultText, setResultText] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
-
-  const dirname = (filePath: string) => {
-    const index = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
-    return index >= 0 ? filePath.slice(0, index) : ".";
-  };
-
-  const addFile = (filePath?: string | null) => {
-    if (!filePath) return;
-    setSelectedFiles((prev) => prev.includes(filePath) ? prev : [...prev, filePath]);
-    if (!resultPath) {
-      setResultPath(`${dirname(filePath)}/persona.md`);
-    }
-  };
-
-  const handleSelectFile = async () => {
-    const filePath = await ipcBridge.selectFile([
-      { name: "Stream Logs", extensions: ["md", "txt", "json"] },
-      { name: "All Files", extensions: ["*"] },
-    ]);
-    addFile(filePath);
-  };
-
-  const handleExtract = async () => {
-    if (selectedFiles.length === 0) {
-      toast.error("스트림 로그 파일을 먼저 선택하세요.");
-      return;
-    }
-
-    const outputPath = resultPath || `${dirname(selectedFiles[0])}/persona.md`;
-    setIsRunning(true);
-    setResultText("");
-
-    try {
-      const result = await ipcBridge.extractPersona({
-        files: selectedFiles,
-        provider,
-        model,
-        out: outputPath,
-        jsonOut: outputPath.replace(/\.md$/i, ".json"),
-        baseUrl: ollamaBaseUrl,
-        glossary,
-      });
-
-      if (!result?.success) {
-        toast.error(result?.error || "페르소나 추출에 실패했습니다.");
-        return;
-      }
-
-      setResultPath(outputPath);
-      setResultText(result.content || await ipcBridge.readFile(outputPath));
-      toast.success("페르소나 추출이 완료되었습니다.");
-    } catch (error: any) {
-      toast.error(error?.message || "페르소나 추출에 실패했습니다.");
-    } finally {
-      setIsRunning(false);
-    }
-  };
-
-  return (
-    <div className="h-full flex flex-col gap-3 overflow-hidden">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <span className="h-6 w-1.5 rounded-full bg-primary" />
-            페르소나 추출
-            <Badge variant="secondary" className="ml-1 text-xs">{selectedFiles.length}</Badge>
-          </h2>
-          <p className="text-xs text-muted-foreground max-w-2xl">
-            스트림 로그 목록을 넣으면 스트리머 성향, 말투, 반복 패턴을 AI 버튜버용 페르소나로 정리합니다.
-          </p>
-        </div>
-        <Button onClick={handleExtract} disabled={isRunning || selectedFiles.length === 0}>
-          <Brain className="h-4 w-4 mr-2" />
-          {isRunning ? "추출 중..." : "페르소나 추출"}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-3 flex-1 overflow-hidden">
-        <Card className="shadow-none overflow-hidden">
-          <CardHeader className="p-4 border-b">
-            <CardTitle className="text-base">입력 설정</CardTitle>
-            <CardDescription>로그 파일과 분석 모델을 선택하세요.</CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 space-y-4 overflow-auto">
-            <div className="space-y-2">
-              <Label>스트림 로그 파일</Label>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleSelectFile}>
-                  <FolderOpen className="h-4 w-4 mr-2" />
-                  파일 추가
-                </Button>
-                <Button variant="outline" onClick={() => setSelectedFiles([])} disabled={selectedFiles.length === 0}>
-                  비우기
-                </Button>
-              </div>
-
-              {streamLogs.length > 0 && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">생성된 스트림 로그에서 추가</Label>
-                  <div className="max-h-36 overflow-auto rounded-md border">
-                    {streamLogs.map((log) => (
-                      <button
-                        key={log.id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted border-b last:border-b-0"
-                        onClick={() => addFile(log.streamLogPath)}
-                      >
-                        <div className="font-medium truncate">{log.vodTitle}</div>
-                        <div className="text-muted-foreground truncate">{log.streamerName}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-1">
-                {selectedFiles.length === 0 ? (
-                  <p className="text-xs text-muted-foreground rounded-md border border-dashed p-3">
-                    선택된 파일이 없습니다.
-                  </p>
-                ) : (
-                  selectedFiles.map((file) => (
-                    <div key={file} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs">
-                      <FileText className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                      <span className="flex-1 truncate font-mono">{file}</span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-6 w-6"
-                        onClick={() => setSelectedFiles((prev) => prev.filter((item) => item !== file))}
-                      >
-                        <XCircle className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>분석 방식</Label>
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value as any)}
-                className="h-10 rounded-md border bg-background px-3 text-sm"
-              >
-                <option value="heuristic">로컬 휴리스틱</option>
-                <option value="openai">OpenAI</option>
-                <option value="ollama">Ollama</option>
-              </select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>모델</Label>
-              <Input
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder={provider === "ollama" ? "llama3.1" : "gpt-5.5"}
-                className="font-mono text-sm"
-              />
-            </div>
-
-            {provider === "ollama" && (
-              <div className="grid gap-2">
-                <Label>Ollama 서버</Label>
-                <Input
-                  value={ollamaBaseUrl}
-                  onChange={(e) => setOllamaBaseUrl(e.target.value)}
-                  placeholder="http://localhost:11434"
-                  className="font-mono text-sm"
-                />
-              </div>
-            )}
-
-            <div className="grid gap-2">
-              <Label>출력 파일</Label>
-              <Input
-                value={resultPath}
-                onChange={(e) => setResultPath(e.target.value)}
-                placeholder="./persona.md"
-                className="font-mono text-sm"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label>전용 용어집</Label>
-              <textarea
-                value={glossary}
-                onChange={(e) => setGlossary(e.target.value)}
-                placeholder="방송 밈, 별명, 자주 쓰는 표현을 한 줄씩 입력"
-                className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none overflow-hidden">
-          <CardHeader className="p-4 border-b">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <CardTitle className="text-base">결과</CardTitle>
-                <CardDescription className="truncate max-w-xl">
-                  {resultPath || "추출 결과가 여기에 표시됩니다."}
-                </CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => resultPath && ipcBridge.openPath(resultPath)} disabled={!resultPath}>
-                <FolderOpen className="h-4 w-4 mr-2" />
-                열기
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0 h-full">
-            <ScrollArea className="h-[calc(100vh-220px)]">
-              {resultText ? (
-                <pre className="whitespace-pre-wrap p-4 text-sm leading-6 font-mono">{resultText}</pre>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-[360px] text-center text-muted-foreground">
-                  <Sparkles className="h-10 w-10 mb-3 opacity-50" />
-                  <p className="text-sm">스트림 로그를 선택하고 페르소나 추출을 실행하세요.</p>
-                </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-// 작업 큐 탭
-function TaskQueueTab() {
-  const { 
-    transcriptionTasks, 
-    analysisTasks, 
-    streamLogs,
-    removeTranscriptionTask, 
-    removeAnalysisTask,
-    updateTranscriptionTask,
-    addTranscriptionTask,
-    downloads
-  } = useAppStore();
-
-  const allTasks = [
-    ...transcriptionTasks.map(t => ({ ...t, taskType: 'transcription' as const })),
-    ...analysisTasks.map(t => {
-        const log = streamLogs.find(l => l.id === t.streamLogId);
-        return { 
-            ...t, 
-            taskType: 'analysis' as const,
-            vodId: log?.vodId || '' 
-        };
-    }),
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  const handleCancelTask = async (task: any) => {
-    if (task.status === 'processing' || task.status === 'queued') {
-      if (task.taskType === 'transcription') {
-        await ipcBridge.cancelTranscriptionTask(task.id);
-        // 취소 후 상태 변경 (삭제가 아니라 취소 상태로)
-        updateTranscriptionTask(task.id, { status: 'cancelled' });
-        toast.info("작업이 취소되었습니다.");
-      } else {
-        // AI 분석 취소 로직 (구현 필요 시 추가)
-        removeAnalysisTask(task.id);
-        toast.info("작업이 취소되었습니다.");
-      }
-    }
-  };
-
-  const handleDeleteTask = (task: any) => {
-    if (task.taskType === 'transcription') {
-      removeTranscriptionTask(task.id);
-    } else {
-      removeAnalysisTask(task.id);
-    }
-    toast.success("작업 내역이 삭제되었습니다.");
-  };
-
-  const handleRetryTask = (task: any) => {
-    if (task.taskType === 'transcription') {
-      // 재시도를 위해 상태 초기화 및 재전송
-      updateTranscriptionTask(task.id, { status: 'queued', progress: 0, error: undefined });
-      ipcBridge.addTranscriptionTask(task);
-      toast.success("작업이 다시 큐에 추가되었습니다.");
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: any; label: string }> = {
-      queued: { variant: "secondary", label: "대기 중" },
-      processing: { variant: "default", label: "처리 중" },
-      completed: { variant: "outline", label: "완료" },
-      failed: { variant: "destructive", label: "실패" },
-      cancelled: { variant: "outline", label: "취소됨" },
-    };
-    const config = variants[status] || variants.queued;
-    return <Badge variant={config.variant} className="text-[10px] px-1.5 h-5">{config.label}</Badge>;
-  };
-
-  const getThumbnail = (task: any) => {
-    // task에 thumbnailUrl이 있으면 우선 사용
-    if (task.thumbnailUrl) {
-      return task.thumbnailUrl;
-    }
-    // 없으면 downloads에서 찾기
-    const downloadItem = downloads.find(d => d.vodId === task.vodId);
-    return downloadItem?.thumbnailUrl || null;
-  };
-
-  const [currentTime, setCurrentTime] = useState(Date.now());
-
-  // 1초마다 업데이트하여 경과 시간 갱신
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const getElapsedTime = (startedAt?: string, completedAt?: string, status?: string) => {
-    if (!startedAt) return "대기 중...";
-    
-    // 완료된 작업은 총 걸린 시간 표시
-    let elapsed;
-    if (status === 'completed' && completedAt) {
-      elapsed = Math.floor((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 1000);
-    } else {
-      elapsed = Math.floor((currentTime - new Date(startedAt).getTime()) / 1000);
-    }
-    
-    // 음수 방지
-    if (elapsed < 0) elapsed = 0;
-    
-    const hours = Math.floor(elapsed / 3600);
-    const minutes = Math.floor((elapsed % 3600) / 60);
-    const seconds = elapsed % 60;
-    
-    if (hours > 0) {
-      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    } else {
-      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
-  };
-
-  return (
-    <div className="h-full flex flex-col gap-2 overflow-hidden">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <span className="h-6 w-1.5 rounded-full bg-primary" />
-          작업 큐
-          <Badge variant="secondary" className="ml-1 text-xs">{allTasks.length}</Badge>
-        </h2>
-      </div>
-
-      <div className="flex-1 overflow-auto">
-        {allTasks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[400px] text-center">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">진행 중인 작업이 없습니다</h3>
-            <p className="text-sm text-muted-foreground">
-              스트림 로그를 생성하거나 AI 분석을 시작하세요
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-0 p-0">
-            {allTasks.map((task) => {
-              const thumbnailUrl = getThumbnail(task);
-              
-              // 상태에 따라 왼쪽 보더 색상 결정
-              const borderColor = task.status === 'completed' 
-                ? 'border-l-green-500/60' 
-                : 'border-l-green-300/40';
-
-              return (
-              <Card key={task.id} className={`overflow-hidden border-l-4 ${borderColor} border-t-border/20 border-r-border/20 border-b-border/20 shadow-none mb-1.5`}>
-                <CardHeader className="p-2">
-                  <div className="flex items-center gap-4">
-                    
-                    {/* 썸네일 영역 - 2배 확대 */}
-                    <div className="relative w-32 aspect-video bg-muted rounded-sm overflow-hidden flex-shrink-0 border border-border/50 self-center">
+                streamerName = download.st…4701 tokens truncated…flow-hidden flex-shrink-0 border border-border/50 self-center">
                         {thumbnailUrl ? (
                             <img src={thumbnailUrl} alt={task.vodTitle} className="w-full h-full object-cover" />
                         ) : (
@@ -1146,19 +676,19 @@ function ResultsTab() {
 function SettingsTab() {
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
   const [openaiApiKey, setOpenaiApiKey] = useState("");
-  const [openaiClientId, setOpenaiClientId] = useState("");
-  const [openaiAuthUrl, setOpenaiAuthUrl] = useState("");
-  const [openaiTokenUrl, setOpenaiTokenUrl] = useState("");
   const [openaiOAuthStatus, setOpenaiOAuthStatus] = useState("확인 전");
+  const [isOpenAiAuthenticating, setIsOpenAiAuthenticating] = useState(false);
   const [googleApiKey, setGoogleApiKey] = useState("");
+
+  useEffect(() => {
+    handleOpenAiOAuthStatus();
+  }, []);
 
   const handleOpenAiOAuthLogin = async () => {
     try {
-      const result = await ipcBridge.openOpenAiOAuthLogin({
-        clientId: openaiClientId,
-        authorizationUrl: openaiAuthUrl,
-        tokenUrl: openaiTokenUrl,
-      });
+      setIsOpenAiAuthenticating(true);
+      setOpenaiOAuthStatus("인증 진행 중");
+      const result = await ipcBridge.openOpenAiOAuthLogin();
       if (result?.success) {
         setOpenaiOAuthStatus("인증됨");
         toast.success("OpenAI OAuth 인증이 완료되었습니다");
@@ -1169,6 +699,8 @@ function SettingsTab() {
     } catch (error: any) {
       setOpenaiOAuthStatus("실패");
       toast.error(error?.message || "OpenAI OAuth 인증에 실패했습니다");
+    } finally {
+      setIsOpenAiAuthenticating(false);
     }
   };
 
@@ -1256,31 +788,21 @@ function SettingsTab() {
               <div>
                 <Label>OAuth 브라우저 인증</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  OpenAI 호환 OAuth 제공자의 PKCE 설정을 입력하면 브라우저 인증 창을 엽니다.
+                  OpenAI 계정 로그인 창을 열고 인증 정보를 이 기기에 저장합니다.
                 </p>
               </div>
-              <Input
-                value={openaiClientId}
-                onChange={(e) => setOpenaiClientId(e.target.value)}
-                placeholder="OAuth Client ID"
-              />
-              <Input
-                value={openaiAuthUrl}
-                onChange={(e) => setOpenaiAuthUrl(e.target.value)}
-                placeholder="Authorization URL"
-              />
-              <Input
-                value={openaiTokenUrl}
-                onChange={(e) => setOpenaiTokenUrl(e.target.value)}
-                placeholder="Token URL"
-              />
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant="outline"
+                  variant={openaiOAuthStatus.startsWith("인증됨") ? "secondary" : "default"}
                   onClick={handleOpenAiOAuthLogin}
-                  disabled={!openaiClientId || !openaiAuthUrl || !openaiTokenUrl}
+                  disabled={isOpenAiAuthenticating}
                 >
-                  브라우저 인증
+                  {openaiOAuthStatus.startsWith("인증됨") ? (
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  ) : (
+                    <KeyRound className="mr-2 h-4 w-4" />
+                  )}
+                  {isOpenAiAuthenticating ? "인증 중..." : openaiOAuthStatus.startsWith("인증됨") ? "인증완료" : "OpenAI 인증"}
                 </Button>
                 <Button variant="outline" onClick={handleOpenAiOAuthStatus}>
                   상태 확인

@@ -32,17 +32,12 @@ node bin/chzzk-scribe.js stream-log --chat chat.json --srt transcript.srt --out 
 node bin/chzzk-scribe.js persona stream-log.md --provider openai --model gpt-5.5 --out persona.md
 ```
 
-OpenAI 호환 OAuth 제공자는 PKCE 브라우저 인증을 사용할 수 있습니다.
+OpenAI OAuth는 브라우저 로그인으로 인증 정보를 저장합니다.
 
 ```bash
-node bin/chzzk-scribe.js openai login \
-  --client-id <client-id> \
-  --auth-url <authorization-url> \
-  --token-url <token-url>
+node bin/chzzk-scribe.js openai login
 node bin/chzzk-scribe.js openai status
 ```
-
-참고: OpenAI Platform API는 일반적으로 API key 방식을 사용합니다. OAuth는 제공자가 authorization/token endpoint를 제공하는 경우에 사용하세요.
 
 
 ## � 다운로드 및 설치

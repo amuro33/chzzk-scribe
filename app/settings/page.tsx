@@ -4,7 +4,7 @@ import { useTheme } from "next-themes";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
-import { FolderOpen, Monitor, Moon, Sun, Palette, Download, RefreshCcw, Info, KeyRound } from "lucide-react";
+import { CheckCircle2, FolderOpen, Monitor, Moon, Sun, Palette, Download, RefreshCcw, Info, KeyRound } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +51,7 @@ function SettingsContent() {
   const [updateProgress, setUpdateProgress] = useState(0);
   const [updateInfo, setUpdateInfo] = useState<any>(null);
   const [openaiOAuthStatus, setOpenaiOAuthStatus] = useState("확인 전");
+  const [isOpenAiAuthenticating, setIsOpenAiAuthenticating] = useState(false);
 
   useEffect(() => {
     if (!isElectron) return;
@@ -92,6 +93,11 @@ function SettingsContent() {
     fetchVersion();
   }, []);
 
+  useEffect(() => {
+    if (!isElectron) return;
+    handleOpenAiOAuthStatus();
+  }, []);
+
   const handleCheckForUpdates = async () => {
     if (!isElectron) {
       toast.error("Electron 환경이 아닙니다.");
@@ -118,11 +124,9 @@ function SettingsContent() {
     }
 
     try {
-      const result = await ipcBridge.openOpenAiOAuthLogin({
-        clientId: appSettings.openaiOAuthClientId,
-        authorizationUrl: appSettings.openaiOAuthAuthorizationUrl,
-        tokenUrl: appSettings.openaiOAuthTokenUrl,
-      });
+      setIsOpenAiAuthenticating(true);
+      setOpenaiOAuthStatus("인증 진행 중");
+      const result = await ipcBridge.openOpenAiOAuthLogin();
       if (result?.success) {
         setOpenaiOAuthStatus("인증됨");
         toast.success("OpenAI OAuth 인증이 완료되었습니다.");
@@ -133,6 +137,8 @@ function SettingsContent() {
     } catch (error: any) {
       setOpenaiOAuthStatus("실패");
       toast.error(error?.message || "OpenAI OAuth 인증에 실패했습니다.");
+    } finally {
+      setIsOpenAiAuthenticating(false);
     }
   };
 
@@ -201,7 +207,7 @@ function SettingsContent() {
                 <div className="space-y-1">
                   <div className="font-medium">OpenAI OAuth</div>
                   <p className="text-sm text-muted-foreground">
-                    OpenAI 호환 OAuth 제공자의 PKCE 설정을 입력하고, 페르소나 추출에 사용할 기본 모델을 선택합니다.
+                    OpenAI 계정으로 브라우저에서 로그인하면 인증 정보가 이 기기에 저장됩니다.
                   </p>
                 </div>
 
@@ -224,43 +230,18 @@ function SettingsContent() {
                   </Select>
                 </div>
 
-                <div className="grid gap-2">
-                  <Label>OAuth Client ID</Label>
-                  <Input
-                    value={appSettings.openaiOAuthClientId || ""}
-                    onChange={(e) => setAppSettings({ openaiOAuthClientId: e.target.value })}
-                    placeholder="client-id"
-                    className="bg-background font-mono text-sm"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Authorization URL</Label>
-                  <Input
-                    value={appSettings.openaiOAuthAuthorizationUrl || ""}
-                    onChange={(e) => setAppSettings({ openaiOAuthAuthorizationUrl: e.target.value })}
-                    placeholder="https://..."
-                    className="bg-background font-mono text-sm"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Token URL</Label>
-                  <Input
-                    value={appSettings.openaiOAuthTokenUrl || ""}
-                    onChange={(e) => setAppSettings({ openaiOAuthTokenUrl: e.target.value })}
-                    placeholder="https://..."
-                    className="bg-background font-mono text-sm"
-                  />
-                </div>
-
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
-                    variant="outline"
+                    variant={openaiOAuthStatus.startsWith("인증됨") ? "secondary" : "default"}
                     onClick={handleOpenAiOAuthLogin}
-                    disabled={!appSettings.openaiOAuthClientId || !appSettings.openaiOAuthAuthorizationUrl || !appSettings.openaiOAuthTokenUrl}
+                    disabled={isOpenAiAuthenticating}
                   >
-                    브라우저 인증
+                    {openaiOAuthStatus.startsWith("인증됨") ? (
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                    ) : (
+                      <KeyRound className="mr-2 h-4 w-4" />
+                    )}
+                    {isOpenAiAuthenticating ? "인증 중..." : openaiOAuthStatus.startsWith("인증됨") ? "인증완료" : "OpenAI 인증"}
                   </Button>
                   <Button variant="outline" onClick={handleOpenAiOAuthStatus}>
                     상태 확인

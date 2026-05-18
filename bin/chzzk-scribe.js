@@ -26,7 +26,7 @@ Usage:
   chzzk-scribe chat <vodId> [--out ./downloads] [--name file.json]
   chzzk-scribe stream-log --chat chat.json --srt transcript.srt --out stream-log.md [--live-start-ms 0]
   chzzk-scribe persona <stream-log.md...> [--provider heuristic|openai|ollama] [--model MODEL] [--out persona.md] [--json-out persona.json]
-  chzzk-scribe openai login --client-id ID --auth-url URL --token-url URL [--scope SCOPE]
+  chzzk-scribe openai login [--client-id ID --auth-url URL --token-url URL] [--scope SCOPE]
   chzzk-scribe openai status
   chzzk-scribe openai logout
 `);
