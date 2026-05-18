@@ -21,7 +21,7 @@ export const ipcBridge = {
         if (!isElectron) return false;
         return window.electron.logoutNaver();
     },
-    openOpenAiOAuthLogin: async (options: any) => {
+    openOpenAiOAuthLogin: async (options: any = {}) => {
         if (!isElectron) return { success: false, error: 'Not in Electron environment' };
         return window.electron.openOpenAiOAuthLogin(options);
     },

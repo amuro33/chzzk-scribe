@@ -451,7 +451,11 @@ async function createWindow() {
 
     ipcMain.handle('open-openai-oauth-login', async (e, options = {}) => {
         const tokenPath = path.join(app.getPath('userData'), 'openai-oauth.json');
-        return startOAuthLogin({ ...options, tokenPath });
+        try {
+            return await startOAuthLogin({ ...options, tokenPath });
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
     });
 
     ipcMain.handle('get-openai-oauth-status', async () => {
