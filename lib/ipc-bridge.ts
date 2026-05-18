@@ -21,6 +21,22 @@ export const ipcBridge = {
         if (!isElectron) return false;
         return window.electron.logoutNaver();
     },
+    openOpenAiOAuthLogin: async (options: any) => {
+        if (!isElectron) return { success: false, error: 'Not in Electron environment' };
+        return window.electron.openOpenAiOAuthLogin(options);
+    },
+    getOpenAiOAuthStatus: async () => {
+        if (!isElectron) return { authenticated: false, savedAt: null };
+        return window.electron.getOpenAiOAuthStatus();
+    },
+    logoutOpenAiOAuth: async () => {
+        if (!isElectron) return false;
+        return window.electron.logoutOpenAiOAuth();
+    },
+    extractPersona: async (options: any) => {
+        if (!isElectron) return { success: false, error: 'Not in Electron environment' };
+        return window.electron.extractPersona(options);
+    },
     getChannelVideos: async (channelId: string, page: number, size: number, sortType: string, cookies: any, videoType: string) => {
         if (!isElectron) return { videos: [], page: 0, size, totalCount: 0, totalPages: 0 };
         return window.electron.getChannelVideos(channelId, page, size, sortType, cookies, videoType);
@@ -145,6 +161,10 @@ export const ipcBridge = {
     selectFile: async (filters?: any[]) => {
         if (!isElectron) return null;
         return window.electron.selectFile(filters);
+    },
+    readFile: async (filePath: string) => {
+        if (!isElectron) return null;
+        return window.electron.readFile(filePath);
     },
     getDiskUsage: async (folderPath: string) => {
         if (!isElectron) return null;

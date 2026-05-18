@@ -4,7 +4,7 @@ import { useTheme } from "next-themes";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
-import { FolderOpen, Monitor, Moon, Sun, Palette, Download, RefreshCcw, Info } from "lucide-react";
+import { FolderOpen, Monitor, Moon, Sun, Palette, Download, RefreshCcw, Info, KeyRound } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ function SettingsContent() {
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error'>('idle');
   const [updateProgress, setUpdateProgress] = useState(0);
   const [updateInfo, setUpdateInfo] = useState<any>(null);
+  const [openaiOAuthStatus, setOpenaiOAuthStatus] = useState("확인 전");
 
   useEffect(() => {
     if (!isElectron) return;
@@ -110,6 +111,42 @@ function SettingsContent() {
     ipcBridge.quitAndInstall();
   };
 
+  const handleOpenAiOAuthLogin = async () => {
+    if (!isElectron) {
+      toast.error("Electron 환경이 아닙니다.");
+      return;
+    }
+
+    try {
+      const result = await ipcBridge.openOpenAiOAuthLogin({
+        clientId: appSettings.openaiOAuthClientId,
+        authorizationUrl: appSettings.openaiOAuthAuthorizationUrl,
+        tokenUrl: appSettings.openaiOAuthTokenUrl,
+      });
+      if (result?.success) {
+        setOpenaiOAuthStatus("인증됨");
+        toast.success("OpenAI OAuth 인증이 완료되었습니다.");
+      } else {
+        setOpenaiOAuthStatus("실패");
+        toast.error(result?.error || "OpenAI OAuth 인증에 실패했습니다.");
+      }
+    } catch (error: any) {
+      setOpenaiOAuthStatus("실패");
+      toast.error(error?.message || "OpenAI OAuth 인증에 실패했습니다.");
+    }
+  };
+
+  const handleOpenAiOAuthStatus = async () => {
+    const status = await ipcBridge.getOpenAiOAuthStatus();
+    setOpenaiOAuthStatus(status.authenticated ? `인증됨 (${status.savedAt || "저장됨"})` : "인증 안 됨");
+  };
+
+  const handleOpenAiOAuthLogout = async () => {
+    await ipcBridge.logoutOpenAiOAuth();
+    setOpenaiOAuthStatus("인증 안 됨");
+    toast.success("OpenAI OAuth 토큰을 삭제했습니다.");
+  };
+
   return (
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
@@ -150,6 +187,88 @@ function SettingsContent() {
                       <Label htmlFor="theme-system" className="cursor-pointer">시스템</Label>
                     </div>
                   </RadioGroup>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <KeyRound className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-medium">AI 인증</h2>
+              </div>
+
+              <div className="grid gap-4 rounded-xl border bg-card p-6 shadow-sm">
+                <div className="space-y-1">
+                  <div className="font-medium">OpenAI OAuth</div>
+                  <p className="text-sm text-muted-foreground">
+                    OpenAI 호환 OAuth 제공자의 PKCE 설정을 입력하고, 페르소나 추출에 사용할 기본 모델을 선택합니다.
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>기본 모델</Label>
+                  <Select
+                    value={appSettings.openaiModel || "gpt-5.5"}
+                    onValueChange={(value) => setAppSettings({ openaiModel: value })}
+                  >
+                    <SelectTrigger className="bg-background font-mono text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-5.5">gpt-5.5</SelectItem>
+                      <SelectItem value="gpt-5.4">gpt-5.4</SelectItem>
+                      <SelectItem value="gpt-5.4-mini">gpt-5.4-mini</SelectItem>
+                      <SelectItem value="gpt-5.3-codex">gpt-5.3-codex</SelectItem>
+                      <SelectItem value="gpt-5.2">gpt-5.2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>OAuth Client ID</Label>
+                  <Input
+                    value={appSettings.openaiOAuthClientId || ""}
+                    onChange={(e) => setAppSettings({ openaiOAuthClientId: e.target.value })}
+                    placeholder="client-id"
+                    className="bg-background font-mono text-sm"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Authorization URL</Label>
+                  <Input
+                    value={appSettings.openaiOAuthAuthorizationUrl || ""}
+                    onChange={(e) => setAppSettings({ openaiOAuthAuthorizationUrl: e.target.value })}
+                    placeholder="https://..."
+                    className="bg-background font-mono text-sm"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Token URL</Label>
+                  <Input
+                    value={appSettings.openaiOAuthTokenUrl || ""}
+                    onChange={(e) => setAppSettings({ openaiOAuthTokenUrl: e.target.value })}
+                    placeholder="https://..."
+                    className="bg-background font-mono text-sm"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleOpenAiOAuthLogin}
+                    disabled={!appSettings.openaiOAuthClientId || !appSettings.openaiOAuthAuthorizationUrl || !appSettings.openaiOAuthTokenUrl}
+                  >
+                    브라우저 인증
+                  </Button>
+                  <Button variant="outline" onClick={handleOpenAiOAuthStatus}>
+                    상태 확인
+                  </Button>
+                  <Button variant="outline" onClick={handleOpenAiOAuthLogout}>
+                    토큰 삭제
+                  </Button>
+                  <span className="text-xs text-muted-foreground">상태: {openaiOAuthStatus}</span>
                 </div>
               </div>
             </section>

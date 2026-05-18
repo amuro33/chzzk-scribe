@@ -92,6 +92,10 @@ export interface AppSettings {
   filenameTemplate?: string;
   saveThumbnail?: boolean;
   downloadEngine: "ffmpeg" | "streamlink";
+  openaiModel?: string;
+  openaiOAuthClientId?: string;
+  openaiOAuthAuthorizationUrl?: string;
+  openaiOAuthTokenUrl?: string;
 }
 
 interface AppState {
@@ -174,6 +178,10 @@ const defaultAppSettings: AppSettings = {
   filenameTemplate: "{title}",
   saveThumbnail: false,
   downloadEngine: "ffmpeg",
+  openaiModel: "gpt-5.5",
+  openaiOAuthClientId: "",
+  openaiOAuthAuthorizationUrl: "",
+  openaiOAuthTokenUrl: "",
 };
 
 export const useAppStore = create<AppState>()(

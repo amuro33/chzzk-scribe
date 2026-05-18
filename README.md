@@ -10,11 +10,39 @@
 
 - **다시 보기 다운로드**: 치지직 VOD 영상을 고화질로 다운로드할 수 있습니다.
 - **채팅 자막 변환**: 채팅 내역을 추출하여 실제 방송 화면의 오버레이처럼 보이는 **ASS 자막**으로 변환합니다.
+- **CLI 워크플로우**: 스트리머 검색, VOD 목록 조회, VOD 다운로드, 채팅 로그 다운로드, 스트림 로그 병합을 터미널에서 실행할 수 있습니다.
 - **방송 분석 기능**: 
   - Faster-Whisper를 활용한 음성 인식으로 방송 음성을 텍스트로 변환
   - 음성과 채팅을 결합한 **스트림 로그** 자동 생성
+  - 스트림 로그 기반 AI 버튜버용 페르소나 추출
   - 백그라운드 작업 큐로 여러 작업 동시 처리
   - GPU 가속 지원 (NVIDIA GPU 권장)
+
+## CLI 사용법
+
+개발 환경에서는 다음처럼 실행할 수 있습니다.
+
+```bash
+node bin/chzzk-scribe.js --help
+node bin/chzzk-scribe.js search "스트리머명" --json
+node bin/chzzk-scribe.js vods <channelId> --size 10 --json
+node bin/chzzk-scribe.js download <vodId> --out ./downloads --quality best
+node bin/chzzk-scribe.js chat <vodId> --out ./downloads
+node bin/chzzk-scribe.js stream-log --chat chat.json --srt transcript.srt --out stream-log.md
+node bin/chzzk-scribe.js persona stream-log.md --provider openai --model gpt-5.5 --out persona.md
+```
+
+OpenAI 호환 OAuth 제공자는 PKCE 브라우저 인증을 사용할 수 있습니다.
+
+```bash
+node bin/chzzk-scribe.js openai login \
+  --client-id <client-id> \
+  --auth-url <authorization-url> \
+  --token-url <token-url>
+node bin/chzzk-scribe.js openai status
+```
+
+참고: OpenAI Platform API는 일반적으로 API key 방식을 사용합니다. OAuth는 제공자가 authorization/token endpoint를 제공하는 경우에 사용하세요.
 
 
 ## � 다운로드 및 설치

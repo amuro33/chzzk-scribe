@@ -3,6 +3,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electron', {
     openNaverLogin: () => ipcRenderer.invoke('open-naver-login'),
     logoutNaver: () => ipcRenderer.invoke('logout-naver'),
+    openOpenAiOAuthLogin: (options) => ipcRenderer.invoke('open-openai-oauth-login', options),
+    getOpenAiOAuthStatus: () => ipcRenderer.invoke('get-openai-oauth-status'),
+    logoutOpenAiOAuth: () => ipcRenderer.invoke('logout-openai-oauth'),
+    extractPersona: (options) => ipcRenderer.invoke('extract-persona', options),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
     openPath: (path) => ipcRenderer.invoke('open-path', path),
     selectDirectory: (defaultPath) => ipcRenderer.invoke('select-directory', defaultPath),

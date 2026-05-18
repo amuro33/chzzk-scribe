@@ -118,7 +118,11 @@ const mainNavItems: NavItem[] = [
 
 
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  activeDownloads?: number;
+}
+
+export function AppSidebar(_props: AppSidebarProps = {}) {
   const pathname = usePathname();
   const { lastActiveStreamerId, downloads, transcriptionTasks, analysisTasks } = useAppStore();
 

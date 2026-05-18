@@ -5,6 +5,10 @@ declare global {
         electron: {
             openNaverLogin: () => Promise<{ nidAut: string; nidSes: string } | null>;
             logoutNaver: () => Promise<boolean>;
+            openOpenAiOAuthLogin: (options: any) => Promise<{ success: boolean; tokenPath?: string; expiresIn?: number; error?: string }>;
+            getOpenAiOAuthStatus: () => Promise<{ authenticated: boolean; savedAt?: string | null; tokenPath?: string }>;
+            logoutOpenAiOAuth: () => Promise<boolean>;
+            extractPersona: (options: any) => Promise<any>;
             openExternal: (url: string) => Promise<void>;
             openPath: (path: string) => Promise<void>;
             selectDirectory: (defaultPath?: string) => Promise<string | null>;

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
 import type { StreamLog, AnalysisMethod } from "@/types/analysis";
+import { useAppStore } from "@/lib/store";
 
 interface AnalysisSettingsDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ export function AnalysisSettingsDialog({
   streamLog,
   onConfirm,
 }: AnalysisSettingsDialogProps) {
+  const defaultOpenAiModel = useAppStore((state) => state.appSettings.openaiModel || "gpt-5.5");
   const [provider, setProvider] = useState<"ollama" | "openai" | "google">("ollama");
   const [analysisMethod, setAnalysisMethod] = useState<AnalysisMethod>("summary");
   const [customPrompt, setCustomPrompt] = useState("");
@@ -45,7 +47,7 @@ export function AnalysisSettingsDialog({
 
   // OpenAI 설정
   const [openaiApiKey, setOpenaiApiKey] = useState("");
-  const [openaiModel, setOpenaiModel] = useState("gpt-4");
+  const [openaiModel, setOpenaiModel] = useState(defaultOpenAiModel);
 
   // Google 설정
   const [googleApiKey, setGoogleApiKey] = useState("");
@@ -55,6 +57,7 @@ export function AnalysisSettingsDialog({
     { value: "summary", label: "요약", description: "방송의 핵심 내용을 요약합니다" },
     { value: "highlights", label: "하이라이트", description: "주요 장면과 재미있는 순간을 추출합니다" },
     { value: "qa", label: "Q&A", description: "시청자 질문과 스트리머 답변을 정리합니다" },
+    { value: "persona", label: "페르소나", description: "AI 버튜버용 성향, 말투, 상호작용 패턴을 추출합니다" },
     { value: "custom", label: "커스텀", description: "직접 프롬프트를 작성합니다" },
   ];
 
@@ -193,9 +196,11 @@ export function AnalysisSettingsDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gpt-4">GPT-4</SelectItem>
-                <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-                <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                <SelectItem value="gpt-5.5">gpt-5.5</SelectItem>
+                <SelectItem value="gpt-5.4">gpt-5.4</SelectItem>
+                <SelectItem value="gpt-5.4-mini">gpt-5.4-mini</SelectItem>
+                <SelectItem value="gpt-5.3-codex">gpt-5.3-codex</SelectItem>
+                <SelectItem value="gpt-5.2">gpt-5.2</SelectItem>
               </SelectContent>
             </Select>
           </div>

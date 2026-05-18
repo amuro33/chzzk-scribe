@@ -3,6 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const { WhisperManager } = require('../lib/whisper-manager');
 const { TaskProcessor } = require('../lib/task-processor');
+const { startOAuthLogin, loadToken, clearToken } = require('../lib/openai-oauth');
+const { extractPersona } = require('../lib/persona-extractor');
 
 // Lazy-loaded modules (loaded when needed)
 let autoUpdater;
@@ -447,6 +449,42 @@ async function createWindow() {
         return true;
     });
 
+    ipcMain.handle('open-openai-oauth-login', async (e, options = {}) => {
+        const tokenPath = path.join(app.getPath('userData'), 'openai-oauth.json');
+        return startOAuthLogin({ ...options, tokenPath });
+    });
+
+    ipcMain.handle('get-openai-oauth-status', async () => {
+        const tokenPath = path.join(app.getPath('userData'), 'openai-oauth.json');
+        const token = loadToken(tokenPath);
+        return { authenticated: Boolean(token), savedAt: token?.savedAt || null, tokenPath };
+    });
+
+    ipcMain.handle('logout-openai-oauth', async () => {
+        const tokenPath = path.join(app.getPath('userData'), 'openai-oauth.json');
+        return clearToken(tokenPath);
+    });
+
+    ipcMain.handle('extract-persona', async (e, options = {}) => {
+        try {
+            const tokenPath = path.join(app.getPath('userData'), 'openai-oauth.json');
+            const result = await extractPersona(options.files || [], {
+                provider: options.provider || 'heuristic',
+                model: options.model,
+                out: options.out,
+                jsonOut: options.jsonOut,
+                baseUrl: options.baseUrl,
+                glossary: options.glossary,
+                maxChars: options.maxChars,
+                apiKey: options.apiKey,
+                tokenPath,
+            });
+            return { success: true, ...result };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    });
+
     ipcMain.handle('get-app-version', () => app.getVersion());
     ipcMain.handle('quit-and-install', () => {
         if (!autoUpdater) autoUpdater = require('electron-updater').autoUpdater;
@@ -620,4 +658,3 @@ ipcMain.handle('delete-whisper-resource', async (e, { type, engineId, modelId })
         return { success: false, error: error.message };
     }
 });
-

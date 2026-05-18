@@ -2,7 +2,7 @@
 
 export type TaskStatus = "queued" | "processing" | "completed" | "failed" | "cancelled";
 
-export type AnalysisMethod = "summary" | "highlights" | "qa" | "custom";
+export type AnalysisMethod = "summary" | "highlights" | "qa" | "persona" | "custom";
 
 export interface WhisperModel {
   id: string;

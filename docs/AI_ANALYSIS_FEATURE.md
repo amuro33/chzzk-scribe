@@ -80,7 +80,7 @@ types/analysis.ts              - AI 분석 관련 타입 정의
 
 **2. OpenAI**
 - API 키 입력
-- 모델 선택 (GPT-4, GPT-4 Turbo, GPT-3.5 Turbo)
+- 모델 선택 (gpt-5.5, gpt-5.4, gpt-5.4-mini 등)
 
 **3. Google AI**
 - API 키 입력

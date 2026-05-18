@@ -145,6 +145,7 @@ export default function AnalysisPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <TabsList className="mb-2 w-fit bg-secondary/30 border border-border/50 h-12 p-1">
               <TabsTrigger value="stream-log" className="text-sm h-10 w-[120px] data-[state=active]:bg-background data-[state=active]:text-primary relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-2 data-[state=active]:after:right-2 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">스트림 로그</TabsTrigger>
+              <TabsTrigger value="persona" className="text-sm h-10 w-[120px] data-[state=active]:bg-background data-[state=active]:text-primary relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-2 data-[state=active]:after:right-2 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">페르소나</TabsTrigger>
               <TabsTrigger value="task-queue" className="text-sm h-10 w-[120px] data-[state=active]:bg-background data-[state=active]:text-primary relative data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-2 data-[state=active]:after:right-2 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
                 작업 큐
                 {activeTaskCount > 0 && (
@@ -158,6 +159,10 @@ export default function AnalysisPage() {
             <div className="flex-1 overflow-hidden">
               <TabsContent value="stream-log" className="h-full m-0">
                 <StreamLogTab setActiveTab={setActiveTab} />
+              </TabsContent>
+
+              <TabsContent value="persona" className="h-full m-0">
+                <PersonaTab />
               </TabsContent>
 
               <TabsContent value="task-queue" className="h-full m-0">
@@ -471,6 +476,246 @@ function StreamLogTab({ setActiveTab }: { setActiveTab: (tab: string) => void })
           />
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// 페르소나 탭
+function PersonaTab() {
+  const { streamLogs, appSettings } = useAppStore();
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [provider, setProvider] = useState<"heuristic" | "openai" | "ollama">("heuristic");
+  const [model, setModel] = useState(appSettings.openaiModel || "gpt-5.5");
+  const [ollamaBaseUrl, setOllamaBaseUrl] = useState("http://localhost:11434");
+  const [glossary, setGlossary] = useState("");
+  const [resultPath, setResultPath] = useState("");
+  const [resultText, setResultText] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
+
+  const dirname = (filePath: string) => {
+    const index = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
+    return index >= 0 ? filePath.slice(0, index) : ".";
+  };
+
+  const addFile = (filePath?: string | null) => {
+    if (!filePath) return;
+    setSelectedFiles((prev) => prev.includes(filePath) ? prev : [...prev, filePath]);
+    if (!resultPath) {
+      setResultPath(`${dirname(filePath)}/persona.md`);
+    }
+  };
+
+  const handleSelectFile = async () => {
+    const filePath = await ipcBridge.selectFile([
+      { name: "Stream Logs", extensions: ["md", "txt", "json"] },
+      { name: "All Files", extensions: ["*"] },
+    ]);
+    addFile(filePath);
+  };
+
+  const handleExtract = async () => {
+    if (selectedFiles.length === 0) {
+      toast.error("스트림 로그 파일을 먼저 선택하세요.");
+      return;
+    }
+
+    const outputPath = resultPath || `${dirname(selectedFiles[0])}/persona.md`;
+    setIsRunning(true);
+    setResultText("");
+
+    try {
+      const result = await ipcBridge.extractPersona({
+        files: selectedFiles,
+        provider,
+        model,
+        out: outputPath,
+        jsonOut: outputPath.replace(/\.md$/i, ".json"),
+        baseUrl: ollamaBaseUrl,
+        glossary,
+      });
+
+      if (!result?.success) {
+        toast.error(result?.error || "페르소나 추출에 실패했습니다.");
+        return;
+      }
+
+      setResultPath(outputPath);
+      setResultText(result.content || await ipcBridge.readFile(outputPath));
+      toast.success("페르소나 추출이 완료되었습니다.");
+    } catch (error: any) {
+      toast.error(error?.message || "페르소나 추출에 실패했습니다.");
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col gap-3 overflow-hidden">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <span className="h-6 w-1.5 rounded-full bg-primary" />
+            페르소나 추출
+            <Badge variant="secondary" className="ml-1 text-xs">{selectedFiles.length}</Badge>
+          </h2>
+          <p className="text-xs text-muted-foreground max-w-2xl">
+            스트림 로그 목록을 넣으면 스트리머 성향, 말투, 반복 패턴을 AI 버튜버용 페르소나로 정리합니다.
+          </p>
+        </div>
+        <Button onClick={handleExtract} disabled={isRunning || selectedFiles.length === 0}>
+          <Brain className="h-4 w-4 mr-2" />
+          {isRunning ? "추출 중..." : "페르소나 추출"}
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-3 flex-1 overflow-hidden">
+        <Card className="shadow-none overflow-hidden">
+          <CardHeader className="p-4 border-b">
+            <CardTitle className="text-base">입력 설정</CardTitle>
+            <CardDescription>로그 파일과 분석 모델을 선택하세요.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4 overflow-auto">
+            <div className="space-y-2">
+              <Label>스트림 로그 파일</Label>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleSelectFile}>
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  파일 추가
+                </Button>
+                <Button variant="outline" onClick={() => setSelectedFiles([])} disabled={selectedFiles.length === 0}>
+                  비우기
+                </Button>
+              </div>
+
+              {streamLogs.length > 0 && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">생성된 스트림 로그에서 추가</Label>
+                  <div className="max-h-36 overflow-auto rounded-md border">
+                    {streamLogs.map((log) => (
+                      <button
+                        key={log.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-muted border-b last:border-b-0"
+                        onClick={() => addFile(log.streamLogPath)}
+                      >
+                        <div className="font-medium truncate">{log.vodTitle}</div>
+                        <div className="text-muted-foreground truncate">{log.streamerName}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                {selectedFiles.length === 0 ? (
+                  <p className="text-xs text-muted-foreground rounded-md border border-dashed p-3">
+                    선택된 파일이 없습니다.
+                  </p>
+                ) : (
+                  selectedFiles.map((file) => (
+                    <div key={file} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs">
+                      <FileText className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                      <span className="flex-1 truncate font-mono">{file}</span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => setSelectedFiles((prev) => prev.filter((item) => item !== file))}
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>분석 방식</Label>
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value as any)}
+                className="h-10 rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="heuristic">로컬 휴리스틱</option>
+                <option value="openai">OpenAI</option>
+                <option value="ollama">Ollama</option>
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>모델</Label>
+              <Input
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder={provider === "ollama" ? "llama3.1" : "gpt-5.5"}
+                className="font-mono text-sm"
+              />
+            </div>
+
+            {provider === "ollama" && (
+              <div className="grid gap-2">
+                <Label>Ollama 서버</Label>
+                <Input
+                  value={ollamaBaseUrl}
+                  onChange={(e) => setOllamaBaseUrl(e.target.value)}
+                  placeholder="http://localhost:11434"
+                  className="font-mono text-sm"
+                />
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <Label>출력 파일</Label>
+              <Input
+                value={resultPath}
+                onChange={(e) => setResultPath(e.target.value)}
+                placeholder="./persona.md"
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>전용 용어집</Label>
+              <textarea
+                value={glossary}
+                onChange={(e) => setGlossary(e.target.value)}
+                placeholder="방송 밈, 별명, 자주 쓰는 표현을 한 줄씩 입력"
+                className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-none overflow-hidden">
+          <CardHeader className="p-4 border-b">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-base">결과</CardTitle>
+                <CardDescription className="truncate max-w-xl">
+                  {resultPath || "추출 결과가 여기에 표시됩니다."}
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => resultPath && ipcBridge.openPath(resultPath)} disabled={!resultPath}>
+                <FolderOpen className="h-4 w-4 mr-2" />
+                열기
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0 h-full">
+            <ScrollArea className="h-[calc(100vh-220px)]">
+              {resultText ? (
+                <pre className="whitespace-pre-wrap p-4 text-sm leading-6 font-mono">{resultText}</pre>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[360px] text-center text-muted-foreground">
+                  <Sparkles className="h-10 w-10 mb-3 opacity-50" />
+                  <p className="text-sm">스트림 로그를 선택하고 페르소나 추출을 실행하세요.</p>
+                </div>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -794,6 +1039,7 @@ function ResultsTab() {
       summary: "요약",
       highlights: "하이라이트",
       qa: "Q&A",
+      persona: "페르소나",
       custom: "커스텀",
     };
     return labels[method] || method;
@@ -900,7 +1146,42 @@ function ResultsTab() {
 function SettingsTab() {
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
   const [openaiApiKey, setOpenaiApiKey] = useState("");
+  const [openaiClientId, setOpenaiClientId] = useState("");
+  const [openaiAuthUrl, setOpenaiAuthUrl] = useState("");
+  const [openaiTokenUrl, setOpenaiTokenUrl] = useState("");
+  const [openaiOAuthStatus, setOpenaiOAuthStatus] = useState("확인 전");
   const [googleApiKey, setGoogleApiKey] = useState("");
+
+  const handleOpenAiOAuthLogin = async () => {
+    try {
+      const result = await ipcBridge.openOpenAiOAuthLogin({
+        clientId: openaiClientId,
+        authorizationUrl: openaiAuthUrl,
+        tokenUrl: openaiTokenUrl,
+      });
+      if (result?.success) {
+        setOpenaiOAuthStatus("인증됨");
+        toast.success("OpenAI OAuth 인증이 완료되었습니다");
+      } else {
+        setOpenaiOAuthStatus("실패");
+        toast.error(result?.error || "OpenAI OAuth 인증에 실패했습니다");
+      }
+    } catch (error: any) {
+      setOpenaiOAuthStatus("실패");
+      toast.error(error?.message || "OpenAI OAuth 인증에 실패했습니다");
+    }
+  };
+
+  const handleOpenAiOAuthStatus = async () => {
+    const status = await ipcBridge.getOpenAiOAuthStatus();
+    setOpenaiOAuthStatus(status.authenticated ? `인증됨 (${status.savedAt || "저장됨"})` : "인증 안 됨");
+  };
+
+  const handleOpenAiOAuthLogout = async () => {
+    await ipcBridge.logoutOpenAiOAuth();
+    setOpenaiOAuthStatus("인증 안 됨");
+    toast.success("OpenAI OAuth 토큰을 삭제했습니다");
+  };
 
   return (
     <div className="h-full flex flex-col gap-2">
@@ -969,6 +1250,46 @@ function SettingsTab() {
                 onChange={(e) => setOpenaiApiKey(e.target.value)}
                 placeholder="sk-..."
               />
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-4">
+              <div>
+                <Label>OAuth 브라우저 인증</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  OpenAI 호환 OAuth 제공자의 PKCE 설정을 입력하면 브라우저 인증 창을 엽니다.
+                </p>
+              </div>
+              <Input
+                value={openaiClientId}
+                onChange={(e) => setOpenaiClientId(e.target.value)}
+                placeholder="OAuth Client ID"
+              />
+              <Input
+                value={openaiAuthUrl}
+                onChange={(e) => setOpenaiAuthUrl(e.target.value)}
+                placeholder="Authorization URL"
+              />
+              <Input
+                value={openaiTokenUrl}
+                onChange={(e) => setOpenaiTokenUrl(e.target.value)}
+                placeholder="Token URL"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleOpenAiOAuthLogin}
+                  disabled={!openaiClientId || !openaiAuthUrl || !openaiTokenUrl}
+                >
+                  브라우저 인증
+                </Button>
+                <Button variant="outline" onClick={handleOpenAiOAuthStatus}>
+                  상태 확인
+                </Button>
+                <Button variant="outline" onClick={handleOpenAiOAuthLogout}>
+                  토큰 삭제
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">상태: {openaiOAuthStatus}</p>
             </div>
           </div>
 
